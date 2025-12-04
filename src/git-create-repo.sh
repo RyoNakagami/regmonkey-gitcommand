@@ -20,6 +20,38 @@
 
 set -euo pipefail
 
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
+# ---- Show usage ----
+while getopts ":h-:" opt; do
+  case $opt in
+    h)
+      usage_helper "$0" 
+      exit 1
+      ;;
+    -)
+      case "${OPTARG}" in
+        help)
+          usage_helper "$0" 
+          exit 1
+          ;;
+        *)
+          echo "Error: Unknown option --${OPTARG}" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    \?)
+      echo "Error: Invalid option -$OPTARG" >&2
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND - 1))
+
+
+
 # Determine the default YAML metadata file in the current Git repo
 if [[ -z "${1-}" ]]; then
     # Get the root of the current Git repo

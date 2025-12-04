@@ -1,13 +1,37 @@
 #!/usr/bin/perl
-# ------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Author: Ryo Nakagami
-# Revised: 2024-07-30
+# Revised: 2025-11-12
+# Script: git-check-commitsize.sh
 # Description:
-#   the command return commit-size, commit-id, filecount, commit-date
-# Usage: 
-#   if you want the comit list each of whose size is over 3MB
-#       git_commit_size_check -unit MB -lowersize 3 -days 10 
-# ------------------------------------------------
+#   This script analyzes the size of Git commits and outputs details for
+#   commits exceeding a specified size threshold within a given time range.
+#
+#   Steps:
+#     1. Parse command-line options to determine the size unit, threshold, and
+#        time range.
+#     2. Validate the required parameters and adjust the date range if provided.
+#     3. Calculate the size of each commit and filter those exceeding the
+#        threshold.
+#     4. Output the commit size, commit ID, file count, and commit date.
+# 
+# Options:
+#    -u|--unit <unit>        Unit of size (B, KB, MB, GB).
+#    -l|--lowersize <size>   Lower size threshold.
+#    -d|--days <days>        Number of days to look back.
+#    -h|--help               Show this help message.
+#
+# Usage:
+#   ./git-check-commitsize.sh -u MB -l 3 -d 10
+#     # Analyze commits larger than 3MB in the last 10 days.
+#
+# Notes:
+#   - Requires Git installed and accessible in the system PATH.
+#   - Uses Perl modules `strict`, `warnings`, and `Getopt::Long`.
+#   - Ensure the script is executed within a Git repository.
+# -----------------------------------------------------------------------------
+
 # error handling
 use strict;
 use warnings;
@@ -18,7 +42,6 @@ my ($unit, $threshold, $date_param);
 my $output     = "";
 my $date       = (`date +%Y-%m-%d -d "365 day ago"`);
 my $scale_unit = 1;
-
 
 # Function to print usage information
 sub print_usage {
@@ -46,7 +69,6 @@ sub get_commit_size {
     }
     return $tot;
 }
-
 
 # main workflows
 GetOptions(

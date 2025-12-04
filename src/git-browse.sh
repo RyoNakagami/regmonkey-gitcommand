@@ -1,49 +1,46 @@
 #!/bin/bash
-# ------------------------------------------------
+
+# -----------------------------------------------------------------------------
 # Author: Ryo Nakagami
-# Revised: 2025-10-21
+# Revised: 2025-11-12
 # Script: git-browse.sh
 # Description:
-#   Open the remote repository URL (branch, tag, or commit)
-#   in a web browser using the GitHub/GitLab/Bitbucket pattern.
+#   This script opens the remote repository URL (branch, tag, or commit) in a
+#   web browser. It supports GitHub, GitLab, and Bitbucket URL patterns and
+#   allows specifying a browser or a specific reference.
+#
+#   Steps:
+#     1. Parse command-line options to determine the browser and reference.
+#     2. Retrieve the list of push remotes and handle multiple remotes.
+#     3. Convert SSH URLs to HTTPS if necessary.
+#     4. Modify the URL based on the specified reference (branch, tag, or commit).
+#     5. Open the URL in the specified or default browser.
+#
+# Options:
+#    -b <browser>  Use the specified browser (e.g., firefox, chrome).
+#    -r <ref>      Open the URL for a specific branch, tag, or commit.
+#    -h            Show this help message.
 #
 # Usage:
-#   git browse [-b browser] [-r ref]
+#   ./git-browse.sh                      # Open the default remote in the default browser.
+#   ./git-browse.sh -b firefox           # Open the default remote in Firefox.
+#   ./git-browse.sh -r main              # Open the URL for the "main" branch.
+#   ./git-browse.sh -r 1234abc           # Open the URL for a specific commit.
 #
 # Notes:
-#   - Requires: git, awk, sed, and a supported browser.
-# ------------------------------------------------
+#   - Requires Git, awk, sed, and a supported browser installed.
+#   - Ensure the script is executed within a Git repository.
+#   - Supports GitHub, GitLab, and Bitbucket URL patterns.
+# -----------------------------------------------------------------------------
+
 set -euo pipefail
 
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
+# ---- Initialize variables ----
 BROWSER=""
 REF=""
-
-usage() {
-    cat << EOF
-Usage: git-browse [-b browser] [-r ref] [-h]
-
-Open the remote repository URL in a browser.
-
-Options:
-  -b <browser>  Use specified browser (e.g., firefox, chrome)
-  -r <ref>      Open specific branch/tag/commit URL
-  -h           Show this help message
-
-Examples:
-  # Open default remote in default browser
-  git browse
-
-  # Open in Firefox
-  git browse -b firefox
-
-  # Open specific branch
-  git browse -r main
-
-  # Open specific commit
-  git browse -r 1234abc
-EOF
-    exit 1
-}
 
 # Validate browser
 validate_browser() {
@@ -67,9 +64,17 @@ while getopts "b:r:h" opt; do
             BROWSER="$OPTARG"
             validate_browser "$BROWSER"
             ;;
-        r) REF="$OPTARG" ;;
-        h) usage ;;
-        *) usage ;;
+        r) 
+            REF="$OPTARG"
+            ;;
+        h) 
+            usage_helper "$0" 
+            exit 1
+            ;;
+        *) 
+            usage_helper "$0"
+            exit 1
+            ;;
     esac
 done
 

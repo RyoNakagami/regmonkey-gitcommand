@@ -23,14 +23,21 @@
 # ------------------------------------------------
 set -euo pipefail
 
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
 # ANSI color codes
 RED='\033[0;31m'
 NC='\033[0m'      # No Color
 
 # Parse options
 DRY_RUN=false
-while getopts ":n" opt; do
+while getopts "nh" opt; do
     case $opt in
+        h)
+            usage_helper "$0"
+            exit 1
+            ;;
         n)
             DRY_RUN=true
             ;;
