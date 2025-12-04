@@ -41,7 +41,7 @@ git-check-commitsize -unit MB -lowersize 3 -days 10
 ### Output Format
 
 ```bash
-$git check-commitsize -unit KB -lowersize 3 -days 60
+$ git check-commitsize -unit KB -lowersize 3 -days 60
 commit-size  commit-id  file-number  commit-date
 14KB         096b7bfd   6            2025-10-23  
 10KB         cf906f92   3            2025-09-16  
