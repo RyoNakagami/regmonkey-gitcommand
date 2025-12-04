@@ -32,27 +32,18 @@
 
 set -euo pipefail
 
-usage() {
-    cat << EOF
-Usage: git-newline-check [options]
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 
-Check for files missing a trailing newline in the current git repository.
-
-Options:
-    -h, --help     Show this help message
-    -i PATTERN     Ignore files matching the given pattern (can be used multiple times)
-EOF
-    exit 0
-}
-
-# Initialize array for ignore patterns
+# ---- Initialize array for ignore patterns ----
 declare -a ignore_patterns=()
 
-# Parse command line arguments
+# ---- Parse command line arguments ----
 while [[ $# -gt 0 ]]; do
     case $1 in
         -h|--help)
-            usage
+            usage_helper "$0"
+            exit 1
             ;;
         -i)
             if [[ -z ${2:-} ]]; then
@@ -64,19 +55,19 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Error: Unknown option: $1"
-            usage
+            usage_helper "$0"
             exit 1
             ;;
     esac
 done
 
-# Ensure we're in a git repository
+# ---- Ensure we're in a git repository ----
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
     echo "Error: Not a git repository"
     exit 1
 fi
 
-# Get all tracked files
+# ---- Get all tracked files ----
 while IFS= read -r -d '' file; do
     # Skip file if it matches any ignore pattern
     skip=0

@@ -24,6 +24,23 @@
 
 set -euo pipefail
 
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
+
+# Parse options
+while getopts "h" opt; do
+    case $opt in
+        h)
+            usage_helper "$0"
+            exit 1
+            ;;
+        \?)
+            echo "Invalid option: -$OPTARG" >&2
+            exit 1
+            ;;
+    esac
+done
+
 # Determine the default YAML metadata file in the current Git repo
 if [[ -z "${1-}" ]]; then
     # Get the root of the current Git repo
@@ -47,6 +64,7 @@ fi
 
 # Extract description
 desc=$(yamlcli --to-json $META_FILE | jq -r '.["meta-data"].description')
+homepage=$(yamlcli --to-json $META_FILE | jq -r '.["meta-data"].homepage // empty')
 
 # Fetch existing topics from GitHub
 mapfile -t existing_topics < <(
@@ -69,7 +87,7 @@ done
 
 
 # Build gh repo edit command
-cmd="gh repo edit --description \"$desc\""
+cmd="gh repo edit --description \"$desc\" --homepage \"$homepage\""
 for topic in "${yaml_topics[@]}"; do
     cmd+=" --add-topic $topic"
 done

@@ -1,0 +1,12 @@
+meta-data:
+  repository_name: regmonkey_gitcommand
+  visibility: public
+  org-name: RyoNakagami
+  tag:
+    - github
+    - command-line-tool
+    - cli-tool
+    - git
+  description: |
+    A command-line tool to manage Git repositories with ease.
+  license: mit
