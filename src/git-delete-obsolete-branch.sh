@@ -32,23 +32,10 @@
 #   - Only deletes branches that can be safely deleted
 # ------------------------------------------------
 
-print_help() {
-    cat << EOF
-Usage: git-detele-obsolete-branch [options]
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 
-Delete local branches that no longer have a remote tracking branch.
-
-Options:
-    --dry   Show branches that would be deleted without actually deleting them
-    --yes   Delete branches without confirmation
-    -h      Show this help message
-
-Without any options, the script will ask for confirmation before deleting each branch.
-EOF
-    exit 0
-}
-
-# Process command line arguments
+# ---- Process command line arguments ----
 DRY_RUN=false
 FORCE_DELETE=false
 
@@ -63,11 +50,13 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h|--help)
-            print_help
+            usage_helper
+            exit 1
             ;;
         *)
             echo "Error: Unknown option $1"
-            print_help
+            usage_helper
+            exit 1
             ;;
     esac
 done
