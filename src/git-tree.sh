@@ -1,82 +1,85 @@
 #!/bin/bash
-## Tree-display git-tracked files
-## Author: Ryo Nakagami
-## Revised: 2024-12-19
-## REQUIREMENT: tree command
+# -----------------------------------------------------------------------------
+# Author: Ryo Nakagami
+# Revised: 2026-04-23
+# Script: git-tree.sh
+# Description:
+#   Tree-display for git-tracked files. Wraps `tree --fromfile` so the output
+#   respects .gitignore and only shows files that git knows about.
+#
+#   Steps:
+#     1. Confirm we are inside a git working tree (scoped to the target path
+#        when one is supplied).
+#     2. List git-tracked files via `git ls-tree -r --name-only HEAD`.
+#     3. Pipe the list into `tree --fromfile` to render the hierarchy.
+#
+# Options:
+#    -h, --help     Show this help message
+#
+# Usage:
+#   ./git-tree.sh                 # render the entire repository
+#   ./git-tree.sh <folder path>   # render only the given folder
+#
+# Notes:
+#   - Requires git and the `tree` command to be installed.
+#   - Must be run from within a git repository.
+#   - When the given folder is not tracked by git, the output will be empty:
+#       <folder name>
+#
+#       0 directories, 0 files
+# -----------------------------------------------------------------------------
 
-function usage {
-    cat <<EOM
-NAME
-    $(basename "$0") - Lists the contents of a given tree object, like what "/bin/tree" does in the current git working directory.
+set -euo pipefail
 
-Syntax
-    $(basename "$0") <folder path>
+# ---- Load dependencies ----
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 
-DESCRIPTION
-    This is a wrapper function of tree. 
-    You need to install tree command in advance.
-    
-    When your current directory is a git-tracked folder, this allows you to show files that are not ignored in .gitignore.
-    When you specify a directory which is not tracked by git as an input, gtree returns 
-        <folder name>
-        
-        0 directories, 0 files
+# ---- Process command line arguments ----
+TARGET_DIR=""
 
-    When your current directory is not a git-tracked one, this returns the following error:
-        <folder name>
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage_helper
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option $1"
+            usage_helper
+            exit 1
+            ;;
+        *)
+            if [[ -n "$TARGET_DIR" ]]; then
+                echo "Error: Unexpected extra argument '$1'"
+                usage_helper
+                exit 1
+            fi
+            TARGET_DIR=$1
+            shift
+            ;;
+    esac
+done
 
-        0 directories, 0 files
-        fatal: not a git repository (or any of the parent directories): .git
-    
-OPTIONS
-  -h, --help
-    Display help
-
-EOM
-
-    exit 0
-}
-
-function error_message {
-    echo 'fatal: something wrong! Check the input. Possibly your input is not a direcotry'
+# ---- Input Validation ----
+if ! command -v tree >/dev/null 2>&1; then
+    echo "❌ 'tree' command not found. Please install it first."
     exit 1
-}
+fi
 
-function directory_error_message {
-    echo 'fatal: $1 does not exist. Check the folder input'
+if [[ -n "$TARGET_DIR" && ! -d "$TARGET_DIR" ]]; then
+    echo "❌ '$TARGET_DIR' does not exist or is not a directory."
     exit 1
-}
+fi
 
-function not_git_repository_error {
+GIT_CHECK_DIR="${TARGET_DIR:-.}"
+if ! git -C "$GIT_CHECK_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     echo "fatal: not a git repository (or any of the parent directories): .git"
     exit 1
-}
+fi
 
-
-if [[ $1 == '-h' || $1 == '--help' ]]; then
-    usage
-    exit 1
-fi 
-
-if [[ $# == 0 ]]; then
-    # git-managed chaeck
-    if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-      not_git_repository_error
-    fi
-
+# ---- Execute tree rendering ----
+if [[ -z "$TARGET_DIR" ]]; then
     git ls-tree -r --name-only HEAD | tree --fromfile
-    exit 0
-
-elif [[ $# == 1 ]]; then
-    if [ -d $1 ]; then
-        # git-managed chaeck
-        if ! git -C "$1" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-            not_git_repository_error
-        fi
-        git ls-tree -r --name-only HEAD $1 | tree --fromfile
-    else
-        directory_error_message
-    fi
 else
-    error_message
+    git ls-tree -r --name-only HEAD "$TARGET_DIR" | tree --fromfile
 fi
