@@ -1,8 +1,8 @@
-# regmonkey_gitcommand
+# regmonkey-gitcommand
 
-![Release](https://img.shields.io/github/tag/ryonakagami/regmonkey_gitcommand.svg)
-![License](https://img.shields.io/github/license/ryonakagami/regmonkey_gitcommand.svg)
-![Issues](https://img.shields.io/github/issues/ryonakagami/regmonkey_gitcommand.svg)
+![Release](https://img.shields.io/github/tag/ryonakagami/regmonkey-gitcommand.svg)
+![License](https://img.shields.io/github/license/ryonakagami/regmonkey-gitcommand.svg)
+![Issues](https://img.shields.io/github/issues/ryonakagami/regmonkey-gitcommand.svg)
 
 ---
 
@@ -21,7 +21,7 @@
 1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/RyoNakagami/regmonkey_gitcommand.git
+    git clone https://github.com/RyoNakagami/regmonkey-gitcommand.git
     ```
 
 2. **[Optional]: dependency check**
@@ -37,7 +37,7 @@
     write the fowllowing line in your `.zshrc` or `.bashrc`
 
     ```bash
-    export PATH="$PATH:$HOME/.tool.d/regmonkey_gitcommand/src"
+    export PATH="$PATH:$HOME/.tool.d/regmonkey-gitcommand/src"
     ```
 
 4. **Permission**
@@ -45,16 +45,16 @@
     Make the scripts executable:
 
     ```bash
-    chmod +x ~/.tool.d/regmonkey_gitcommand/src/*
+    chmod +x ~/.tool.d/regmonkey-gitcommand/src/*
     ```
 
 ## Uninstall
 
-1. Delete the directory `~/.tool.d/regmonkey_gitcommand`
-2. Delete the line `export PATH=$PATH:~/.tool.d/regmonkey_gitcommand/src` in your `.zshrc` or `.bashrc`
+1. Delete the directory `~/.tool.d/regmonkey-gitcommand`
+2. Delete the line `export PATH=$PATH:~/.tool.d/regmonkey-gitcommand/src` in your `.zshrc` or `.bashrc`
 
 ```bash
-rm -rf ~/.tool.d/regmonkey_gitcommand
+rm -rf ~/.tool.d/regmonkey-gitcommand
 ```
 
 ## RECOMMENDATION: Update your a gitconfig
@@ -63,7 +63,7 @@ To enhance your Git experience with some convenient aliases, please add the foll
 
 ```ini
 [alias]
-  # regmonkey_gitcommand
+  # regmonkey-gitcommand
   add-newline = "!git-add-newline.sh"
   add-patch = "!git-add-patch.sh"
   browse = "!git-browse.sh"
