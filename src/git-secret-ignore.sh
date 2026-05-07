@@ -4,23 +4,24 @@
 # Revised: 2026-05-04
 # Script: git-secret-ignore.sh
 # Description:
-#   This script registers <specified-pattern> as a locally-ignored path via
-#   `.git/info/exclude`, keeping it untracked without modifying the shared
+#   This script registers one or more <pattern>s as locally-ignored paths via
+#   `.git/info/exclude`, keeping them untracked without modifying the shared
 #   `.gitignore`.
 #
 #   Steps:
 #     1. Parse command-line options (--check, --help).
 #     2. Verify the current working directory is a git repository.
 #     3. Create `.git/info/exclude` if it does not yet exist.
-#     4. Append the specified pattern to the exclude file when absent.
+#     4. Append each specified pattern to the exclude file when absent.
 #
 # Options:
 #    --check, -n      Show what is written in .git/info/exclude and exit.
 #    --help, -h       Show usage information and exit.
 #
 # Usage:
-#   ./git-secret-ignore.sh <specified-pattern>   # Register pattern in .git/info/exclude.
-#   ./git-secret-ignore.sh --check               # Preview current exclude file contents.
+#   ./git-secret-ignore.sh <pattern> [<pattern> ...]   # Register pattern(s) in .git/info/exclude.
+#   ./git-secret-ignore.sh --check                     # Preview current exclude file contents.
+#   ./git-secret-ignore.sh secret.env '*.key' .env.local
 #
 # Notes:
 #   - Requires Bash shell.
@@ -34,7 +35,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 
 # ---- Process command line arguments ----
-PATTERN=""
+PATTERNS=()
 CHECK=false
 
 while [[ $# -gt 0 ]]; do
@@ -53,12 +54,7 @@ while [[ $# -gt 0 ]]; do
             exit 1
             ;;
         *)
-            if [[ -n "$PATTERN" ]]; then
-                echo "Error: Multiple patterns provided. Specify exactly one."
-                usage_helper
-                exit 1
-            fi
-            PATTERN=$1
+            PATTERNS+=("$1")
             shift
             ;;
     esac
@@ -84,8 +80,8 @@ if $CHECK; then
 fi
 
 # ---- Input Validation ----
-if [[ -z "$PATTERN" ]]; then
-    echo "Error: Missing <specified-pattern>."
+if [[ ${#PATTERNS[@]} -eq 0 ]]; then
+    echo "Error: Missing <pattern>."
     usage_helper
     exit 1
 fi
@@ -94,11 +90,14 @@ fi
 mkdir -p "$(dirname "$EXCLUDE_FILE")"
 touch "$EXCLUDE_FILE"
 
-# ---- Append pattern when absent ----
-if grep -Fxq -- "$PATTERN" "$EXCLUDE_FILE"; then
-    echo "ℹ️  Pattern already present in ${EXCLUDE_FILE}: $PATTERN"
-    exit 0
-fi
+# ---- Append each pattern when absent ----
+for pattern in "${PATTERNS[@]}"; do
+    if grep -Fxq -- "$pattern" "$EXCLUDE_FILE"; then
+        echo "ℹ️  Already present: $pattern"
+    else
+        printf '%s\n' "$pattern" >> "$EXCLUDE_FILE"
+        echo "🎉 Registered: $pattern"
+    fi
+done
 
-printf '%s\n' "$PATTERN" >> "$EXCLUDE_FILE"
-echo "🎉 Registered pattern in ${EXCLUDE_FILE}: $PATTERN"
+echo "✅ Done. Updated ${EXCLUDE_FILE}."
