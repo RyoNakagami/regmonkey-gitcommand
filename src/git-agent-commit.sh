@@ -15,17 +15,19 @@
 #
 # Options:
 #    --dryrun           Print the generated commit message without committing
+#    --codex            Use the `codex` CLI instead of `claude` for generation
 #    --rule <path>      Read a branch rule file and include it in the prompt
 #                       so the generated message follows the project's rules
 #    -h, --help         Show this help message
 #
 # Usage:
-#   ./git-gen-commit.sh                      # Generate and commit
+#   ./git-gen-commit.sh                      # Generate and commit (claude)
 #   ./git-gen-commit.sh --dryrun             # Show message only
+#   ./git-gen-commit.sh --codex              # Generate via codex instead
 #   ./git-gen-commit.sh --rule .claude/commit-rule.md
 #
 # Notes:
-#   - Requires the `claude` CLI to be installed and on PATH.
+#   - Requires the `claude` CLI on PATH (or `codex` when --codex is given).
 #   - Must be run from within a git repository with staged changes.
 # -----------------------------------------------------------------------------
 
@@ -36,12 +38,17 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 
 # ---- Process command line arguments ----
 DRY_RUN=false
+USE_CODEX=false
 RULE_PATH=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dryrun)
             DRY_RUN=true
+            shift
+            ;;
+        --codex)
+            USE_CODEX=true
             shift
             ;;
         --rule)
@@ -66,9 +73,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---- Input Validation ----
-if ! command -v claude >/dev/null 2>&1; then
-    echo "❌ 'claude' CLI not found on PATH."
-    exit 1
+if $USE_CODEX; then
+    if ! command -v codex >/dev/null 2>&1; then
+        echo "❌ 'codex' CLI not found on PATH."
+        exit 1
+    fi
+else
+    if ! command -v claude >/dev/null 2>&1; then
+        echo "❌ 'claude' CLI not found on PATH."
+        exit 1
+    fi
 fi
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -99,7 +113,21 @@ ${RULE_CONTENT}
 fi
 
 # ---- Generate message ----
-MESSAGE=$(git diff --cached | claude -p "$PROMPT" | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//')
+if $USE_CODEX; then
+    DIFF=$(git diff --cached)
+    COMBINED="${PROMPT}
+
+--- staged diff ---
+${DIFF}
+--- end diff ---"
+    TMPFILE="$(mktemp)"
+    trap 'rm -f "$TMPFILE"' EXIT
+    codex exec --dangerously-bypass-approvals-and-sandbox \
+        -o "$TMPFILE" "$COMBINED" >/dev/null 2>&1
+    MESSAGE=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' "$TMPFILE")
+else
+    MESSAGE=$(git diff --cached | claude -p "$PROMPT" | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//')
+fi
 
 if [[ -z "$MESSAGE" ]]; then
     echo "❌ Empty commit message returned from claude."

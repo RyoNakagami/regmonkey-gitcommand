@@ -13,7 +13,9 @@
 #     2. Verify the current working directory is a git repository.
 #     3. Verify `fd` is available on PATH.
 #     4. Locate `.gitkeep` files (including those in hidden directories).
-#     5. Stage each file with `git add`, or list them in check mode.
+#     5. Stage each file with `git add -f`, or list them in check mode.
+#        `-f` is required because `.gitkeep` files commonly live inside
+#        directories ignored by `.gitignore`.
 #
 # Options:
 #    -n, --check     Show the `.gitkeep` files that would be staged and exit.
@@ -77,7 +79,9 @@ else
 fi
 
 # ---- Collect .gitkeep files ----
-mapfile -t GITKEEP_FILES < <("$FD_BIN" -H '\.gitkeep$' -t f)
+# `-H` includes hidden directories and `-I` disables .gitignore filtering, since
+# `.gitkeep` files commonly live inside directories listed in `.gitignore`.
+mapfile -t GITKEEP_FILES < <("$FD_BIN" -H -I '\.gitkeep$' -t f)
 
 if [[ ${#GITKEEP_FILES[@]} -eq 0 ]]; then
     echo "ℹ️  No .gitkeep files found."
@@ -95,7 +99,7 @@ fi
 
 # ---- Stage each .gitkeep ----
 for file in "${GITKEEP_FILES[@]}"; do
-    git add "$file"
+    git add "$file" -f
     echo "🎉 Added: $file"
 done
 
