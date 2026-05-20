@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-20
+
+### Added
+- `git-first-add`: for each tracked file, report the commit at which it was first
+  added (`--diff-filter=A --reverse`), the most recent re-add commit, and the total
+  number of add events. Accepts specific file arguments or defaults to all tracked
+  files; supports `-q`/`--no-header` to suppress the table header.
+- Contributing guide documenting the branch and release workflow (`CONTRIBUTING.md`).
+
+### CI
+- Release workflow: automatically creates a version tag on `develop → main` merges,
+  driven by the `VERSION` file.
+
+### Documentation
+- Expanded wiki with full script entries and one-liner usage equivalents.
+
 ## [1.1.0] - 2026-05-19
 
 ### Added
@@ -54,7 +70,9 @@ Maintenance release.
 - `git-add-patch`: interactive patch-add helper.
 - `git-add-newline`: ensure trailing newline before staging.
 
-[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.3...v1.1.0
 [1.0.3]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.0...v1.0.1
