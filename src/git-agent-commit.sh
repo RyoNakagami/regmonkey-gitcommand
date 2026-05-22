@@ -18,13 +18,18 @@
 #    --codex            Use the `codex` CLI instead of `claude` for generation
 #    --rule <path>      Read a branch rule file and include it in the prompt
 #                       so the generated message follows the project's rules
+#    --model <model>    Claude model to use (default: claude-sonnet-4-6)
+#    --exclude <pat>    Pathspec to exclude from diff (repeatable)
+#                       e.g. --exclude '*.lock' --exclude 'Cargo.lock'
 #    -h, --help         Show this help message
 #
 # Usage:
-#   ./git-gen-commit.sh                      # Generate and commit (claude)
-#   ./git-gen-commit.sh --dryrun             # Show message only
-#   ./git-gen-commit.sh --codex              # Generate via codex instead
+#   ./git-gen-commit.sh                                      # Generate and commit (claude)
+#   ./git-gen-commit.sh --dryrun                             # Show message only
+#   ./git-gen-commit.sh --codex                              # Generate via codex instead
 #   ./git-gen-commit.sh --rule .claude/commit-rule.md
+#   ./git-gen-commit.sh --model claude-sonnet-4-6
+#   ./git-gen-commit.sh --exclude '*.lock' --exclude 'Cargo.lock'
 #
 # Notes:
 #   - Requires the `claude` CLI on PATH (or `codex` when --codex is given).
@@ -40,6 +45,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 DRY_RUN=false
 USE_CODEX=false
 RULE_PATH=""
+MODEL="claude-sonnet-4-6"
+EXCLUDES=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -58,6 +65,24 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             RULE_PATH=$2
+            shift 2
+            ;;
+        --model)
+            if [[ $# -lt 2 || -z "${2:-}" ]]; then
+                echo "Error: --model requires an argument"
+                usage_helper
+                exit 1
+            fi
+            MODEL=$2
+            shift 2
+            ;;
+        --exclude)
+            if [[ $# -lt 2 || -z "${2:-}" ]]; then
+                echo "Error: --exclude requires a pattern argument"
+                usage_helper
+                exit 1
+            fi
+            EXCLUDES+=(":!${2}")
             shift 2
             ;;
         -h|--help)
@@ -113,8 +138,13 @@ ${RULE_CONTENT}
 fi
 
 # ---- Generate message ----
+DIFF_ARGS=()
+for ex in "${EXCLUDES[@]+"${EXCLUDES[@]}"}"; do
+    DIFF_ARGS+=("$ex")
+done
+
 if $USE_CODEX; then
-    DIFF=$(git diff --cached)
+    DIFF=$(git diff --cached -- "${DIFF_ARGS[@]+"${DIFF_ARGS[@]}"}")
     COMBINED="${PROMPT}
 
 --- staged diff ---
@@ -126,7 +156,9 @@ ${DIFF}
         -o "$TMPFILE" "$COMBINED" >/dev/null 2>&1
     MESSAGE=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' "$TMPFILE")
 else
-    MESSAGE=$(git diff --cached | claude -p "$PROMPT" | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    MESSAGE=$(git diff --cached -- "${DIFF_ARGS[@]+"${DIFF_ARGS[@]}"}" \
+        | claude -p "$PROMPT" --model "$MODEL" \
+        | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//')
 fi
 
 if [[ -z "$MESSAGE" ]]; then
