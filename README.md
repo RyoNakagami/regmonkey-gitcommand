@@ -64,20 +64,34 @@ To enhance your Git experience with some convenient aliases, please add the foll
 ```ini
 [alias]
   # regmonkey-gitcommand
+  add-gitkeep = "!git-add-gitkeep.sh"
   add-newline = "!git-add-newline.sh"
   add-patch = "!git-add-patch.sh"
+  agent-commit = "!git-agent-commit.sh"
   browse = "!git-browse.sh"
   check-commitsize = "!git-check-commitsize.sh"
+  create-repo = "!git-create-repo.sh"
   delete-current-repo = "!git-delete-current-repo.sh"
   delete-obsolete-branch = "!git-delete-obsolete-branch.sh"
+  delete-remote-branch = "!git-delete-remote-branch.sh"
+  find = "!git-find.sh"
+  first-add = "!git-first-add.sh"
   issue2pr = "!git-issue2pr.sh"
   lastdiff = "!git-lastdiff.sh"
   newline-check = "!git-newline-check.sh"
+  push-multiple-remotes = "!git-push-multiple-remotes.sh"
+  repo-update = "!git-repo-update.sh"
+  secret-ignore = "!git-secret-ignore.sh"
+  sparse-checkout = "!git-sparse-checkout.sh"
   sprint-commit = "!git-sprint-commit.sh"
+  ssh-clone-from-https = "!git-ssh-clone-from-https.sh"
   tree = "!git-tree.sh"
   tmp-checkout = "!git-tmp-checkout.sh"
   whoami = "!git-whoami.sh"
 ```
+
+Full per-script documentation — options, examples, and a plain-git **one-liner
+equivalent** for every script — lives in [docs/wiki.md](docs/wiki.md).
 
 These aliases provide shortcuts for common commands, making your workflow more efficient.
 For example, `git check-commitsize` will run the `git-check-commitsize` command, and git tree will run the gtree command.

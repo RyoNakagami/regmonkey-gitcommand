@@ -2,7 +2,7 @@
 # ------------------------------------------------
 # Author: Ryo Nakagami
 # Revised: 2025-10-20
-# Script: git-gh-repo-update.sh
+# Script: git-repo-update.sh
 # Description:
 #   Updates the GitHub repository description and topics
 #   based on a YAML metadata file.

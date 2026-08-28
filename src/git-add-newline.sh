@@ -17,12 +17,12 @@
 #
 # Options:
 #    -h, --help     Show this help message
-#    -i PATTERN     Ignore files matching the given pattern (can be used multiple times)
+#    -i PATTERN     Ignore files matching the given regex (can be used multiple times)
 #
 # Usage:
 #   ./git-add-newline.sh                    # Process all tracked files
-#   ./git-add-newline.sh -i "*.md"          # Ignore markdown files
-#   ./git-add-newline.sh -i "*.jpg" -i "*.png"   # Ignore multiple patterns
+#   ./git-add-newline.sh -i '\.md$'          # Ignore markdown files
+#   ./git-add-newline.sh -i '\.jpg$' -i '\.png$'  # Ignore multiple patterns
 #
 # Notes:
 #   - Requires git to be installed and configured
