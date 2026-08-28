@@ -14,6 +14,7 @@ A collection of git helper scripts to enhance your git workflow. Every entry bel
 - [git-delete-current-repo](#git-delete-current-repo) - Delete the GitHub repository for the current working directory
 - [git-delete-obsolete-branch](#git-delete-obsolete-branch) - Delete local branches with no remote tracking
 - [git-delete-remote-branch](#git-delete-remote-branch) - Delete a remote branch (optionally the local copy too)
+- [git-find](#git-find) - Grep file paths known to git (tracked / untracked / ignored)
 - [git-first-add](#git-first-add) - Report the first (and latest) commit that added each tracked file
 - [git-issue2pr](#git-issue2pr) - Convert a GitHub issue into a Pull Request
 - [git-lastdiff](#git-lastdiff) - Show diff between last commit and current state
@@ -453,6 +454,78 @@ Also delete the local branch:
 
 ```bash
 git push origin --delete <branch> && git branch -D <branch>
+```
+
+## git-find
+
+Greps the list of file paths that git knows about. By default it searches tracked **and** untracked files while honouring `.gitignore`, so it behaves like a git-aware `find` that never descends into `node_modules/` or build output. Scope flags narrow it to tracked-only or untracked-only, and `-a` brings ignored files back in.
+
+### Usage
+
+```bash
+git-find [options] <pattern> [-- <pathspec> ...]
+```
+
+### Options
+
+| Option | Description |
+| --- | --- |
+| `-t`, `--tracked` | List tracked files only (`git ls-files`) |
+| `-u`, `--untracked` | List untracked-but-not-ignored files only (drops `--cached`) |
+| `-a`, `--all` | List tracked + untracked, including ignored files |
+| `-i`, `--ignore-case` | Case-insensitive pattern match |
+| `-F`, `--fixed-strings` | Treat the pattern as a literal string, not a regex |
+| `-c`, `--count` | Print only the number of matching paths |
+| `-z`, `--null` | NUL-separate output (safe for `xargs -0`) |
+| `-h`, `--help` | Show this help message |
+
+Scope flags (`-t` / `-u` / `-a`) are mutually exclusive. Everything after `--` is passed to git as a pathspec, so the search can be scoped to a subdirectory.
+
+### Examples
+
+```bash
+git-find '\.py$'                     # tracked + untracked, gitignore honoured
+git-find -t '\.py$'                  # tracked only
+git-find -u '\.py$'                  # untracked only
+git-find -i 'readme'                 # case-insensitive
+git-find -F 'src/lib.sh'             # literal match, no regex
+git-find -c '\.sh$'                  # count matches
+git-find -z '\.sh$' | xargs -0 wc -l # pipe safely into xargs
+git-find '\.md$' -- docs             # limit the search to docs/
+```
+
+The pattern is matched against the whole path relative to the repository root, not just the basename. Exit status is `1` when nothing matches, mirroring `grep`.
+
+### One-liner equivalent
+
+Default (tracked + untracked, respecting `.gitignore`):
+
+```bash
+git ls-files --cached --others --exclude-standard | grep '<pattern>'
+```
+
+Tracked only:
+
+```bash
+git ls-files | grep '<pattern>'
+```
+
+Untracked only — drop `--cached`:
+
+```bash
+git ls-files --others --exclude-standard | grep '<pattern>'
+```
+
+Tracked + untracked including ignored files:
+
+```bash
+git ls-files --cached --others | grep '<pattern>'
+```
+
+NUL-safe variant for filenames containing spaces or newlines:
+
+```bash
+git ls-files -z --cached --others --exclude-standard | grep -z '<pattern>'
 ```
 
 ## git-first-add
