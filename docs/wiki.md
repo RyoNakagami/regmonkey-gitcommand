@@ -44,6 +44,11 @@ git-add-gitkeep [options]
 - `-n, --check` - Show the `.gitkeep` files that would be staged and exit
 - `-h, --help` - Show help message
 
+### Requirements
+
+- `fd` (or `fdfind`) on PATH; the script exits with an error without it.
+  The search starts from the current directory, not the repository root.
+
 ### Example
 
 ```bash
@@ -109,14 +114,18 @@ git-add-patch [options]
 
 ### Options
 
-- `-a` - Stage all modified files (`git add -u`)
+- (no options) - Interactively patch-stage **every** modified file in the repository
+- `-a` - Stage all modified files non-interactively (`git add -u`)
 - `-d <directory>` - Interactively stage modified files under `<directory>`
 - `-s <keyword>` - Interactively stage modified files whose path matches `<keyword>` (case-insensitive)
 - `-h` - Show help message
 
+Precedence when combined: `-a` short-circuits everything, otherwise `-d` wins over `-s`.
+
 ### Example
 
 ```bash
+git-add-patch                    # Patch-stage every modified file
 git-add-patch -a                 # Stage everything modified
 git-add-patch -d src/api         # Interactive patch staging in src/api
 git-add-patch -s controller      # Interactive patch staging for files matching "controller"
@@ -157,6 +166,10 @@ git-agent-commit [options]
 - `--dryrun` - Print the generated message without committing
 - `--codex` - Use the `codex` CLI instead of `claude`
 - `--rule <path>` - Include the contents of a commit-message rule file in the prompt
+- `--model <model>` - Claude model used to generate the message
+  (default: `claude-sonnet-4-6`). Ignored by the `--codex` backend.
+- `--exclude <pathspec>` - Drop paths from the staged diff sent to the agent
+  (repeatable). Git magic pathspecs are supported, e.g. `':(glob)**/*.lock'`.
 - `-h, --help` - Show help message
 
 ### Example
@@ -166,6 +179,8 @@ git-agent-commit                                # Generate via claude and commit
 git-agent-commit --dryrun                       # Preview the message only
 git-agent-commit --codex                        # Generate via codex
 git-agent-commit --rule .claude/commit-rule.md  # Apply project rules
+git-agent-commit --model claude-opus-4-6         # Pick the model
+git-agent-commit --exclude '*.lock' --exclude dist/  # Ignore noisy paths
 ```
 
 ### One-liner equivalent
@@ -194,7 +209,7 @@ git-browse [-b browser] [-r ref] [-h]
 
 ### Options
 
-- `-b <browser>` - Use specified browser (firefox, chrome, chromium, safari, edge)
+- `-b <browser>` - Use specified browser (`firefox`, `chrome`, `chromium`, `google-chrome`). Any other value is rejected.
 - `-r <ref>` - Open URL for a specific branch / tag / commit
 - `-h` - Show help message
 
@@ -261,15 +276,17 @@ Analyzes and reports commit sizes in a git repository, helping identify large co
 ### Usage
 
 ```bash
-git-check-commitsize [options]
+git-check-commitsize -u <unit> -l <size> [-d <days>]
 ```
 
 ### Options
 
-- `-u, --unit <unit>` - Unit of size (B, KB, MB, GB)
-- `-l, --lowersize <size>` - Lower size threshold
-- `-d, --days <days>` - Number of days to look back
+- `-u, --unit <unit>` - Unit of size (B, KB, MB, GB) **(required)**
+- `-l, --lowersize <size>` - Lower size threshold **(required)**
+- `-d, --days <days>` - Number of days to look back (default: `365`)
 - `-h, --help` - Show help message
+
+Omitting `-u` or `-l` exits with `Error: Missing required parameters.`
 
 ### Example
 
@@ -318,6 +335,13 @@ git-create-repo                       # Use default YAML
 git-create-repo /path/to/gh-meta.yml  # Use a custom YAML
 ```
 
+### Options
+
+- `-h, --help` - Show help message
+
+The YAML path must end in `.yml` or `.yaml`. `--source` is always the git root,
+so the script has to be run from inside an existing repository.
+
 ### YAML format
 
 ```yaml
@@ -348,7 +372,7 @@ gh repo create <name> --public
 
 ## git-delete-current-repo
 
-Deletes the GitHub repository that corresponds to the current working directory's `origin`, after a confirmation prompt. Local files are untouched.
+Deletes the GitHub repository that corresponds to the current working directory's `origin`, after a confirmation prompt. Local files are untouched, but the local `origin` remote is removed on success.
 
 ### Usage
 
@@ -356,6 +380,14 @@ Deletes the GitHub repository that corresponds to the current working directory'
 git-delete-current-repo        # Confirm and delete
 git-delete-current-repo -n     # Dry run
 ```
+
+### Options
+
+- `-n` - Dry run; report what would be deleted and exit
+- `-h` - Show help message
+
+The confirmation prompt accepts only a single `y` / `Y`; anything else (including
+`yes`) aborts.
 
 ### Requirements
 
@@ -387,7 +419,7 @@ git-delete-obsolete-branch [options]
 
 - `--dry` - Show branches that would be deleted without deleting
 - `--yes` - Delete without confirmation
-- `-h` - Show help message
+- `-h, --help` - Show help message
 
 ### Features
 
@@ -405,16 +437,25 @@ git-delete-obsolete-branch          # Interactive
 
 ### One-liner equivalent
 
+The script runs `git fetch --prune` (default remote only) and deletes with
+`git branch -d`, so unmerged branches are refused rather than discarded.
+
 Dry run:
 
 ```bash
-git fetch --all --prune && git branch -vv | awk '/: gone]/ {print $1}'
+git fetch --prune && git branch -vv | awk '/: gone]/ {print $1}'
 ```
 
-Force delete all gone branches:
+Delete all gone branches, refusing unmerged ones (what the script does):
 
 ```bash
-git fetch --all --prune && git branch -vv | awk '/: gone]/ {print $1}' | xargs -r git branch -D
+git fetch --prune && git branch -vv | awk '/: gone]/ {print $1}' | xargs -r git branch -d
+```
+
+Force delete even unmerged branches (**not** what the script does):
+
+```bash
+git fetch --prune && git branch -vv | awk '/: gone]/ {print $1}' | xargs -r git branch -D
 ```
 
 ## git-delete-remote-branch
@@ -479,7 +520,7 @@ git-find [options] <pattern> [-- <pathspec> ...]
 | `-z`, `--null` | NUL-separate output (safe for `xargs -0`) |
 | `-h`, `--help` | Show this help message |
 
-Scope flags (`-t` / `-u` / `-a`) are mutually exclusive. Everything after `--` is passed to git as a pathspec, so the search can be scoped to a subdirectory.
+Scope flags (`-t` / `-u` / `-a`) are mutually exclusive, and `-c` and `-z` are mutually exclusive too. Everything after `--` is passed to git as a pathspec, so the search can be scoped to a subdirectory.
 
 ### Examples
 
@@ -556,7 +597,7 @@ git-first-add --no-header src/foo.sh       # Useful for piping
 ```text
 file                                                count      oldest commit                                                   latest commit
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-src/foo.sh                                          count=1    abc1234 Alice 2025-01-10 10:00:00 +0900 Initial commit          abc1234 Alice 2025-01-10 10:00:00 +0900 Initial commit
+src/foo.sh                                          count=1    oldest: abc1234 Alice 2025-01-10 10:00:00 +0900 Initial commit  latest: abc1234 Alice 2025-01-10 10:00:00 +0900 Initial commit
 ```
 
 Each row contains:
@@ -639,25 +680,49 @@ gh api "repos/$(gh repo view --json nameWithOwner -q .nameWithOwner)/pulls" \
 
 ## git-lastdiff
 
-Shows differences between the last commit that touched a file and the current state, using `git difftool`.
+Shows what the last commit that touched a file actually changed, by diffing that
+commit against its parent. Uses `git difftool` by default.
 
 ### Usage
 
 ```bash
-git-lastdiff <file_path>
+git-lastdiff [-n <N>] [--no-tool] <file_path>
+```
+
+### Options
+
+- `-n <N>` - Diff the N-th most recent commit that touched the file (default: `1`).
+  Errors out if the file has fewer than N commits.
+- `--no-tool` - Use `git diff` (plain terminal output) instead of `git difftool`.
+- `-h, --help` - Show help message.
+
+### Example
+
+```bash
+# What did the last commit change in this file?
+git-lastdiff src/git-find.sh
+
+# The commit before that, as plain text
+git-lastdiff -n 2 --no-tool src/git-find.sh
 ```
 
 ### One-liner equivalent
 
-```bash
-git difftool "$(git log -n 1 --format=%H -- <file>)" -- <file>
-```
-
-If the file is unchanged since the last commit on `HEAD`, this is simply:
+The script resolves the N-th newest commit for the file, then diffs that commit's
+**parent** against `HEAD`:
 
 ```bash
-git difftool HEAD -- <file>
+git difftool -y "$(git log -n 1 --format=%H -- <file>)^" HEAD -- <file>
 ```
+
+With `--no-tool`:
+
+```bash
+git diff "$(git log -n 1 --format=%H -- <file>)^" HEAD -- <file>
+```
+
+For a root commit (no parent) the script substitutes the empty-tree object
+(`git hash-object -t tree /dev/null`), so the file shows up as entirely added.
 
 ## git-newline-check
 
@@ -705,7 +770,9 @@ git-push-multiple-remotes main
 git remote | xargs -I{} git push {} <branch>
 ```
 
-Add error-on-first-failure semantics:
+The script does **not** stop on a failed push: it continues to the remaining
+remotes and always exits `0`. To stop at the first failure instead (a behavior
+change, not an equivalent):
 
 ```bash
 git remote | while read r; do git push "$r" <branch> || break; done
@@ -721,6 +788,13 @@ Updates a GitHub repository's description, homepage, and topics from a YAML meta
 git-repo-update                       # Use default YAML
 git-repo-update /path/to/gh-meta.yml  # Use a custom YAML
 ```
+
+The default YAML path is
+`<repo-root>/.github/repository_metadata/gh_repo.yml`.
+
+### Options
+
+- `-h` - Show help message (exits with status 1)
 
 ### YAML format
 
@@ -790,12 +864,13 @@ grep -Fxq -- '<pattern>' "$(git rev-parse --git-dir)/info/exclude" 2>/dev/null \
 
 ## git-sparse-checkout
 
-Clones a Git repository with sparse checkout enabled, useful for pulling only specific directories from a large repository.
+Clones a Git repository with sparse checkout enabled, useful for pulling only specific directories from a large repository. The clone is blobless (`--filter=blob:none`), so file contents are fetched lazily.
 
 ### Usage
 
 ```bash
 git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> -p <sparse_path>
+git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 ```
 
 ### Options
@@ -803,31 +878,54 @@ git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> -p <sparse_path>
 - `-u <clone_url>` - URL of the Git repository to clone (required)
 - `-d <target_dir>` - Target directory (required)
 - `-b <branch>` - Branch to check out (required)
-- `-p <sparse_path>` - Path pattern for sparse checkout (required)
+- `-p <sparse_path>` - **Colon-separated** list of path patterns to check out.
+  Required unless `-s` is given.
+- `-s` - Bare/skeleton mode: check out only the top-level files (`/*` plus `!/*/`)
+  and then create the repository's directory tree as empty directories. Mutually
+  exclusive with the need for `-p`.
+- `-h` - Show help message
 
 ### Example
 
 ```bash
 git-sparse-checkout -u https://github.com/user/repo.git -d ./my-repo -b main -p "docs/*"
 git-sparse-checkout -u https://github.com/user/repo.git -d ./project -b develop -p "src/main.py"
-git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main -p "src/\ntest/"
+
+# Multiple paths are separated by ':'
+git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main -p "src/:test/"
+
+# Skeleton only: top-level files + empty dir tree
+git-sparse-checkout -s -u https://github.com/user/repo.git -d ./skeleton -b main
 ```
 
 ### How It Works
 
-1. Clones the repository without checking out files (`--no-checkout`)
+1. Clones the repository blobless and without checking out files
+   (`git clone --filter=blob:none --no-checkout`)
 2. Enables sparse checkout configuration (`core.sparseCheckout true`)
-3. Writes the path pattern into `.git/info/sparse-checkout`
+3. Writes the patterns into `.git/info/sparse-checkout`, splitting `-p` on `:`
 4. Checks out the specified branch
+5. With `-s`, additionally materializes every tracked directory as an empty dir
+   (`git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"`)
 
 ### One-liner equivalent
 
 ```bash
-git clone --no-checkout <url> <dir> \
+git clone --filter=blob:none --no-checkout <url> <dir> \
     && cd <dir> \
     && git config core.sparseCheckout true \
-    && printf 'docs/*\n' > .git/info/sparse-checkout \
+    && printf 'src/\ntest/\n' > .git/info/sparse-checkout \
     && git checkout <branch>
+```
+
+Skeleton mode (`-s`):
+
+```bash
+git clone --filter=blob:none --no-checkout <url> <dir> && cd <dir>
+git config core.sparseCheckout true
+printf '/*\n!/*/\n' > .git/info/sparse-checkout
+git checkout <branch>
+git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"
 ```
 
 Modern `git sparse-checkout` subcommand (Git ≥ 2.25):
@@ -849,12 +947,18 @@ Creates a commit whose message is prefixed with the current ISO year / week, e.g
 ```bash
 git-sprint-commit                   # Commit with just the sprint prefix
 git-sprint-commit -m "<message>"    # Commit with prefix + message
+git-sprint-commit <words...>        # Trailing words become the message
 ```
+
+Requires staged changes; aborts with `No staged changes to commit.` otherwise.
 
 ### Options
 
 - `-m, --message <msg>` - Message to append after the sprint prefix
 - `-h, --help` - Show help message
+
+Any trailing positional arguments are appended to the message, so
+`git-sprint-commit Fix typo` works and combines with `-m`.
 
 ### Example
 
@@ -923,13 +1027,25 @@ git-tmp-checkout -m <stash_message> -c <new_branch_name>
 
 ### Options
 
-- `-m` - Stash message (optional, auto-generated if omitted)
+- `-m` - Stash message. If omitted, defaults to
+  `Stash created on <YYYY-MM-DD HH:MM:SS> from commit <short-sha>`.
 - `-c` - New branch name (required)
+- `-h, --help` - Show help message
+
+### Example
+
+```bash
+git-tmp-checkout -c feature/wip
+git-tmp-checkout -m "half-done refactor" -c feature/wip
+```
 
 ### One-liner equivalent
 
+The stash includes untracked and ignored files (`-a`), and is applied rather than
+popped, so the stash entry remains in the list afterwards:
+
 ```bash
-git stash push -m "<msg>" && git checkout -b <new-branch> && git stash pop
+git stash push -a -m "<msg>" && git switch -c <new-branch> && git stash apply stash@{0}
 ```
 
 If you have no uncommitted changes you want preserved:
@@ -948,6 +1064,10 @@ Lists git-tracked files in a tree structure, similar to `tree(1)` but limited to
 git-tree [folder_path]
 ```
 
+### Options
+
+- `-h, --help` - Show help message
+
 ### Requirements
 
 - `tree` command installed
@@ -956,20 +1076,25 @@ git-tree [folder_path]
 
 - Not a git repository
 - Invalid directory input
-- Non-git-tracked directory
+
+A directory that exists but contains no git-tracked files is not an error — the
+output is simply empty.
 
 ### One-liner equivalent
+
+The script lists files from the commit at `HEAD` (`git ls-tree`), so
+staged-but-uncommitted new files do not appear.
 
 Whole repo:
 
 ```bash
-git ls-files | tree --fromfile
+git ls-tree -r --name-only HEAD | tree --fromfile
 ```
 
 Restricted to a folder:
 
 ```bash
-git ls-files -- <folder> | tree --fromfile
+git ls-tree -r --name-only HEAD -- <folder> | tree --fromfile
 ```
 
 ## git-whoami
@@ -981,6 +1106,10 @@ Displays the configured git user name and email.
 ```bash
 git-whoami
 ```
+
+### Options
+
+- `-h` - Show help message (exits with status 1). Long-form `--help` is not supported.
 
 ### Output
 
