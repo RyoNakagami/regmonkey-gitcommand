@@ -5,6 +5,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `git-agent-commit`: `--exclude` now understands git magic pathspecs. Previously the
+  value was unconditionally prefixed with `:!`, so a magic pathspec such as
+  `--exclude ':(glob)**/*.lock'` became `:!:(glob)**/*.lock` — which git silently
+  interprets as excluding a literal file named `:(glob)**/*.lock`, matching nothing.
+  The exclusion was therefore a no-op with no error reported. The `exclude` magic word
+  is now merged into the user's pathspec while preserving any other magic words
+  (`glob`, `icase`, `top`, `attr:`, ...):
+  `'*.lock'` → `:(exclude)*.lock`, `':(glob)**/*.lock'` → `:(exclude,glob)**/*.lock`,
+  `':/a/b'` → `:(exclude,top)a/b`, while `':!x'` / `':^x'` / `':(exclude,icase)x'`
+  are passed through unchanged. Malformed values (bare `:`, unterminated `:(glob`)
+  are now rejected with an error instead of being silently ignored.
+
 ## [1.2.0] - 2026-05-20
 
 ### Added
