@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `git-grep-commit`: find commits with `git log -G`, optionally scoped by
+  revision ranges and Git pathspecs, and render the matching paths as a table,
+  JSON, or YAML. Use `-i` for case-insensitive patch matching and Git-compatible
+  `--diff-filter` values, including uppercase inclusion, lowercase exclusion,
+  and `*` all-or-none behavior.
+
 ## [1.3.0] - 2026-08-28
 
 ### Added
@@ -80,6 +87,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `git-add-newline`: the `--help` text advertised glob-style ignore patterns
   (`-i "*.md"`), but matching uses bash regex (`[[ $file =~ $pattern ]]`), so a
   glob never matched. The examples now show regexes (`-i '\.md$'`).
+
+### Removed
+- `VERSION` file. The release workflow derives the tag from the top
+  `## [X.Y.Z]` heading in this changelog, so the file was a second, redundant
+  source of truth that had to be kept in sync by hand.
 
 ## [1.2.0] - 2026-05-20
 

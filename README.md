@@ -76,6 +76,7 @@ To enhance your Git experience with some convenient aliases, please add the foll
   delete-remote-branch = "!git-delete-remote-branch.sh"
   find = "!git-find.sh"
   first-add = "!git-first-add.sh"
+  grep-commit = "!git-grep-commit.sh"
   issue2pr = "!git-issue2pr.sh"
   lastdiff = "!git-lastdiff.sh"
   newline-check = "!git-newline-check.sh"

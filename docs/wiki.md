@@ -16,6 +16,7 @@ A collection of git helper scripts to enhance your git workflow. Every entry bel
 - [git-delete-remote-branch](#git-delete-remote-branch) - Delete a remote branch (optionally the local copy too)
 - [git-find](#git-find) - Grep file paths known to git (tracked / untracked / ignored)
 - [git-first-add](#git-first-add) - Report the first (and latest) commit that added each tracked file
+- [git-grep-commit](#git-grep-commit) - Find commits whose patches match a regex
 - [git-issue2pr](#git-issue2pr) - Convert a GitHub issue into a Pull Request
 - [git-lastdiff](#git-lastdiff) - Show diff between last commit and current state
 - [git-newline-check](#git-newline-check) - Check for missing trailing newlines
@@ -636,6 +637,74 @@ git ls-files | while read f; do
     printf "%-50s  " "$f"
     git log --diff-filter=A --reverse --format="%h %an %ad %s" --date=iso -- "$f" | head -1
 done
+```
+
+## git-grep-commit
+
+Finds commits whose patches add or remove text matching a regular expression,
+then groups the affected paths by commit. Revision ranges and every path after
+`--` are passed through to Git, including magic pathspecs.
+
+### Usage
+
+```bash
+git-grep-commit [options] <regex> [<revision> ...] [-- <pathspec> ...]
+```
+
+### Options
+
+- `-f, --format <format>` - Output as `table` (default), `json`, or `yml`;
+  `yaml` is accepted as an alias for `yml`
+- `-i, --ignore-case` - Match the patch regex case-insensitively
+- `--diff-filter <filter>` - Apply Git's native diff filter. Uppercase status
+  letters include changes, lowercase letters exclude changes, and `*` enables
+  Git's all-or-none behavior. Both `--diff-filter=AM` and `--diff-filter AM`
+  are accepted.
+- `-h, --help` - Show help message
+
+The filter value is passed unchanged to Git:
+
+| Filter | Result |
+| --- | --- |
+| `A` | Added paths only |
+| `M` | Modified paths only |
+| `D` | Deleted paths only |
+| `R` | Renamed paths only |
+| `C` | Copied paths only |
+| `AM` | Added or modified paths |
+| `ad` | Exclude added and deleted paths |
+| `AM*` | If a commit contains an added or modified path, select all changed paths in that commit |
+
+Other native Git status letters such as `T`, `U`, `X`, and `B` are also
+accepted. Because `*` modifies other selection letters, it is normally combined
+with them, as in `AM*`.
+
+### Examples
+
+```bash
+git-grep-commit 'TODO'
+git-grep-commit -i 'todo' HEAD~20..HEAD
+git-grep-commit --diff-filter=A 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter=AM 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter=ad 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter='*' 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter='AM*' 'TODO' HEAD~20..HEAD
+git-grep-commit 'TODO' HEAD~20..HEAD -- '*.qmd'
+git-grep-commit --format json 'TODO' HEAD~20..HEAD -- ':(glob)**/*.qmd'
+git-grep-commit -f yml 'TODO' -- docs/
+```
+
+JSON and YAML contain one object per commit with a nested `files` list. Rename
+and copy entries contain both `old_path` and `path`; the table renders these as
+`old path -> new path`. Filenames containing tabs or newlines are escaped in the
+table and serialized safely in JSON/YAML.
+
+### One-liner equivalent
+
+```bash
+git log -G '<regex>' [--regexp-ignore-case] [--diff-filter=AM] \
+    --format='commit %h' --name-status \
+    <revision-range> -- '<pathspec>'
 ```
 
 ## git-issue2pr
