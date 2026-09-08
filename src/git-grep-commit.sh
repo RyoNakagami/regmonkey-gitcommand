@@ -10,6 +10,8 @@
 # Options:
 #    -f, --format FORMAT   Output format: table (default), json, or yml.
 #    -i, --ignore-case     Match the patch regex case-insensitively.
+#    --long-date           Display the author date in ISO 8601 format (%ai).
+#    --short-date          Display the author date as YYYY-MM-DD (%as).
 #    --diff-filter FILTER  Apply git's native status filter. Uppercase letters
 #                          include statuses, lowercase letters exclude them,
 #                          and * enables git's all-or-none behavior.
@@ -45,6 +47,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/docstring.sh"
 # ---- Process command line arguments ----
 OUTPUT_FORMAT="table"
 IGNORE_CASE=false
+DATE_FORMAT=""
 DIFF_FILTER_OPTIONS=()
 POSITIONAL=()
 PATHSPECS=()
@@ -65,6 +68,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         -i|--ignore-case)
             IGNORE_CASE=true
+            shift
+            ;;
+        --long-date)
+            DATE_FORMAT='%ai'
+            shift
+            ;;
+        --short-date)
+            DATE_FORMAT='%as'
             shift
             ;;
         --diff-filter)
@@ -135,7 +146,12 @@ fi
 LOG_FILE=$(mktemp "${TMPDIR:-/tmp}/git-grep-commit.XXXXXX")
 trap 'rm -f "$LOG_FILE"' EXIT HUP INT TERM
 
-GIT_LOG_OPTIONS=(-z -G "$PATTERN" --format='%x1e%h' --name-status)
+PRETTY_FORMAT='%x1e%h'
+if [[ -n $DATE_FORMAT ]]; then
+    PRETTY_FORMAT+="%x1f${DATE_FORMAT}"
+fi
+
+GIT_LOG_OPTIONS=(-z -G "$PATTERN" --format="$PRETTY_FORMAT" --name-status)
 if $IGNORE_CASE; then
     GIT_LOG_OPTIONS+=(--regexp-ignore-case)
 fi
@@ -149,15 +165,24 @@ if ! git log "${GIT_LOG_OPTIONS[@]}" \
 fi
 
 RECORD_COMMITS=()
+RECORD_DATES=()
 RECORD_STATUSES=()
 RECORD_PATHS=()
 RECORD_OLD_PATHS=()
 current_commit=""
+current_date=""
 
 exec 3<"$LOG_FILE"
 while IFS= read -r -d '' field <&3; do
     if [[ $field == $'\x1e'* ]]; then
-        current_commit=${field#$'\x1e'}
+        commit_field=${field#$'\x1e'}
+        if [[ -n $DATE_FORMAT ]]; then
+            current_commit=${commit_field%%$'\x1f'*}
+            current_date=${commit_field#*$'\x1f'}
+        else
+            current_commit=$commit_field
+            current_date=""
+        fi
         continue
     fi
 
@@ -183,6 +208,7 @@ while IFS= read -r -d '' field <&3; do
     fi
 
     RECORD_COMMITS+=("$current_commit")
+    RECORD_DATES+=("$current_date")
     RECORD_STATUSES+=("$status")
     RECORD_PATHS+=("$path")
     RECORD_OLD_PATHS+=("$old_path")
@@ -237,7 +263,11 @@ emit_json() {
     printf '[\n'
     while ((i < ${#RECORD_COMMITS[@]})); do
         commit=${RECORD_COMMITS[i]}
-        printf '%s  {"commit": %s, "files": [\n' "$outer_sep" "$(json_quote "$commit")"
+        printf '%s  {"commit": %s' "$outer_sep" "$(json_quote "$commit")"
+        if [[ -n $DATE_FORMAT ]]; then
+            printf ', "date": %s' "$(json_quote "${RECORD_DATES[i]}")"
+        fi
+        printf ', "files": [\n'
         j=$i
         file_sep=""
         while ((j < ${#RECORD_COMMITS[@]})) && [[ ${RECORD_COMMITS[j]} == "$commit" ]]; do
@@ -267,7 +297,11 @@ emit_yml() {
 
     while ((i < ${#RECORD_COMMITS[@]})); do
         commit=${RECORD_COMMITS[i]}
-        printf -- '- commit: %s\n  files:\n' "$(json_quote "$commit")"
+        printf -- '- commit: %s\n' "$(json_quote "$commit")"
+        if [[ -n $DATE_FORMAT ]]; then
+            printf '  date: %s\n' "$(json_quote "${RECORD_DATES[i]}")"
+        fi
+        printf '  files:\n'
         j=$i
         while ((j < ${#RECORD_COMMITS[@]})) && [[ ${RECORD_COMMITS[j]} == "$commit" ]]; do
             printf '    - status: %s\n' "$(json_quote "${RECORD_STATUSES[j]}")"
@@ -283,6 +317,7 @@ emit_yml() {
 
 emit_table() {
     local commit_width=6
+    local date_width=4
     local status_width=6
     local path_width=4
     local display_path line
@@ -297,20 +332,35 @@ emit_table() {
         table_paths+=("$display_path")
 
         ((${#RECORD_COMMITS[i]} > commit_width)) && commit_width=${#RECORD_COMMITS[i]}
+        ((${#RECORD_DATES[i]} > date_width)) && date_width=${#RECORD_DATES[i]}
         ((${#RECORD_STATUSES[i]} > status_width)) && status_width=${#RECORD_STATUSES[i]}
         ((${#display_path} > path_width)) && path_width=${#display_path}
     done
 
-    printf '%-*s  %-*s  %s\n' "$commit_width" COMMIT "$status_width" STATUS PATH
-    total_width=$((commit_width + status_width + path_width + 4))
+    if [[ -n $DATE_FORMAT ]]; then
+        printf '%-*s  %-*s  %-*s  %s\n' \
+            "$commit_width" COMMIT "$date_width" DATE "$status_width" STATUS PATH
+        total_width=$((commit_width + date_width + status_width + path_width + 6))
+    else
+        printf '%-*s  %-*s  %s\n' "$commit_width" COMMIT "$status_width" STATUS PATH
+        total_width=$((commit_width + status_width + path_width + 4))
+    fi
     printf -v line '%*s' "$total_width" ''
     printf '%s\n' "${line// /-}"
 
     for ((i = 0; i < ${#RECORD_COMMITS[@]}; i++)); do
-        printf '%-*s  %-*s  %s\n' \
-            "$commit_width" "${RECORD_COMMITS[i]}" \
-            "$status_width" "${RECORD_STATUSES[i]}" \
-            "${table_paths[i]}"
+        if [[ -n $DATE_FORMAT ]]; then
+            printf '%-*s  %-*s  %-*s  %s\n' \
+                "$commit_width" "${RECORD_COMMITS[i]}" \
+                "$date_width" "${RECORD_DATES[i]}" \
+                "$status_width" "${RECORD_STATUSES[i]}" \
+                "${table_paths[i]}"
+        else
+            printf '%-*s  %-*s  %s\n' \
+                "$commit_width" "${RECORD_COMMITS[i]}" \
+                "$status_width" "${RECORD_STATUSES[i]}" \
+                "${table_paths[i]}"
+        fi
     done
 }
 

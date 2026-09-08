@@ -606,9 +606,9 @@ Each row contains:
 | Field    | Description                                                              |
 | -------- | ------------------------------------------------------------------------ |
 | `file`   | Tracked file path                                                        |
-| `count`  | Number of times the file has been added (>1 means deleted and re-added) |
-| `oldest` | Hash, author, date, and subject of the first add commit                 |
-| `latest` | Hash, author, date, and subject of the most recent add commit           |
+| `count`  | Number of times the file has been added (>1 means deleted and re-added)  |
+| `oldest` | Hash, author, date, and subject of the first add commit                  |
+| `latest` | Hash, author, date, and subject of the most recent add commit            |
 
 ### One-liner equivalent
 
