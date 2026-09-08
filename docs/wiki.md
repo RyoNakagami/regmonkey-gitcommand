@@ -656,6 +656,9 @@ git-grep-commit [options] <regex> [<revision> ...] [-- <pathspec> ...]
 - `-f, --format <format>` - Output as `table` (default), `json`, or `yml`;
   `yaml` is accepted as an alias for `yml`
 - `-i, --ignore-case` - Match the patch regex case-insensitively
+- `--long-date` - Show the author date in ISO 8601 format (`%ai`, e.g.
+  `2026-09-08 19:03:24 +0900`)
+- `--short-date` - Show the author date as `YYYY-MM-DD` (`%as`)
 - `--diff-filter <filter>` - Apply Git's native diff filter. Uppercase status
   letters include changes, lowercase letters exclude changes, and `*` enables
   Git's all-or-none behavior. Both `--diff-filter=AM` and `--diff-filter AM`
@@ -692,6 +695,8 @@ git-grep-commit --diff-filter='AM*' 'TODO' HEAD~20..HEAD
 git-grep-commit 'TODO' HEAD~20..HEAD -- '*.qmd'
 git-grep-commit --format json 'TODO' HEAD~20..HEAD -- ':(glob)**/*.qmd'
 git-grep-commit -f yml 'TODO' -- docs/
+git-grep-commit --short-date 'TODO' HEAD~20..HEAD
+git-grep-commit --long-date -f json 'TODO' HEAD~20..HEAD
 ```
 
 JSON and YAML contain one object per commit with a nested `files` list. Rename
@@ -699,11 +704,19 @@ and copy entries contain both `old_path` and `path`; the table renders these as
 `old path -> new path`. Filenames containing tabs or newlines are escaped in the
 table and serialized safely in JSON/YAML.
 
+The date options are off by default. With `--long-date` or `--short-date`, the
+table gains a `DATE` column after `COMMIT`, and each JSON/YAML commit object
+gains a `date` field. The last of the two flags on the command line wins.
+
 ### One-liner equivalent
 
 ```bash
 git log -G '<regex>' [--regexp-ignore-case] [--diff-filter=AM] \
     --format='commit %h' --name-status \
+    <revision-range> -- '<pathspec>'
+
+# With the author date (--long-date uses %ai, --short-date uses %as)
+git log -G '<regex>' --format='commit %h %as' --name-status \
     <revision-range> -- '<pathspec>'
 ```
 
@@ -952,7 +965,7 @@ git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 - `-s` - Bare/skeleton mode: check out only the top-level files (`/*` plus `!/*/`)
   and then create the repository's directory tree as empty directories. Mutually
   exclusive with the need for `-p`.
-- `-h` - Show help message
+- `-h, --help` - Show help message
 
 ### Example
 
