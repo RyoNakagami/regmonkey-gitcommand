@@ -21,6 +21,7 @@ A collection of git helper scripts to enhance your git workflow. Every entry bel
 - [git-lastdiff](#git-lastdiff) - Show diff between last commit and current state
 - [git-newline-check](#git-newline-check) - Check for missing trailing newlines
 - [git-push-multiple-remotes](#git-push-multiple-remotes) - Push a branch to every configured remote
+- [git-rename-repo](#git-rename-repo) - Rename the current GitHub repository from a YAML metadata file
 - [git-repo-update](#git-repo-update) - Update GitHub repo description / topics from a YAML file
 - [git-secret-ignore](#git-secret-ignore) - Register patterns in `.git/info/exclude` (private ignore)
 - [git-sparse-checkout](#git-sparse-checkout) - Clone repository with sparse checkout for specific paths
@@ -858,6 +859,69 @@ change, not an equivalent):
 
 ```bash
 git remote | while read r; do git push "$r" <branch> || break; done
+```
+
+## git-rename-repo
+
+Renames the current GitHub repository to the `repository_name` defined in a YAML metadata file (`.github/repository_metadata/gh_repo.yml` by default), after a confirmation prompt. This is the counterpart to `git-create-repo`: edit the YAML, then run this script to bring the remote name back in sync.
+
+### Usage
+
+```bash
+git-rename-repo                       # Use default YAML
+git-rename-repo /path/to/gh-meta.yml  # Use a custom YAML
+git-rename-repo -n                    # Dry run
+```
+
+The default YAML path is
+`<repo-root>/.github/repository_metadata/gh_repo.yml`, and the path must end in
+`.yml` or `.yaml`.
+
+### Options
+
+- `-n, --dry-run` - Report the rename that would happen and exit without calling `gh`
+- `-h, --help` - Show help message
+
+The confirmation prompt accepts only a single `y` / `Y`; anything else (including
+`yes`) aborts.
+
+### YAML format
+
+```yaml
+meta-data:
+  repository_name: my-renamed-repo
+  org-name: my-org           # optional; must match the current owner
+```
+
+`org-name` is the key written by `gh_repo.yml`; `org_name` is accepted as a
+fallback for metadata files created for older versions of `git-create-repo`.
+
+### Behaviour
+
+- Exits successfully with a message when the YAML name already matches the
+  current repository name, so the script is safe to re-run.
+- Rejects a `repository_name` that contains a `/` or whitespace — it must be a
+  bare repository name, not `owner/name`.
+- Errors out when the owner in the YAML differs from the current owner:
+  `gh repo rename` cannot transfer a repository to another owner.
+- Does not touch local files. `gh repo rename` updates the `origin` remote URL
+  for the repository you run it in.
+
+### Requirements
+
+- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
+- `yamlcli` and `jq` for YAML parsing
+
+### One-liner equivalent
+
+```bash
+gh repo rename <new-name> --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)" --yes
+```
+
+Reading the new name out of the YAML file:
+
+```bash
+gh repo rename "$(yamlcli --to-json .github/repository_metadata/gh_repo.yml | jq -r '.["meta-data"].repository_name')" --yes
 ```
 
 ## git-repo-update

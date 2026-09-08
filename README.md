@@ -81,6 +81,7 @@ To enhance your Git experience with some convenient aliases, please add the foll
   lastdiff = "!git-lastdiff.sh"
   newline-check = "!git-newline-check.sh"
   push-multiple-remotes = "!git-push-multiple-remotes.sh"
+  rename-repo = "!git-rename-repo.sh"
   repo-update = "!git-repo-update.sh"
   secret-ignore = "!git-secret-ignore.sh"
   sparse-checkout = "!git-sparse-checkout.sh"

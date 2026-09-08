@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `git-rename-repo`: rename the current GitHub repository to the
+  `repository_name` defined in a YAML metadata file
+  (`.github/repository_metadata/gh_repo.yml` by default), the counterpart to
+  `git-create-repo`. Validates that the name is a bare repository name (no owner,
+  no whitespace) and that the optional owner key (`org-name`, falling back to
+  `org_name`) matches the current owner, since `gh repo rename` cannot transfer
+  ownership. Exits successfully when the name already matches, so it is safe to
+  re-run. Supports `-n`/`--dry-run` and confirms before renaming.
 - `git-grep-commit`: find commits with `git log -G`, optionally scoped by
   revision ranges and Git pathspecs, and render the matching paths as a table,
   JSON, or YAML. Use `-i` for case-insensitive patch matching and Git-compatible
