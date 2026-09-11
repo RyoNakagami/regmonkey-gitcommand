@@ -1068,6 +1068,8 @@ Clones a Git repository with sparse checkout enabled, useful for pulling only sp
 
 ```bash
 git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> -p <sparse_path>
+git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> \
+  -p <sparse_path> -p <sparse_path>
 git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 ```
 
@@ -1076,21 +1078,22 @@ git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 - `-u <clone_url>` - URL of the Git repository to clone (required)
 - `-d <target_dir>` - Target directory (required)
 - `-b <branch>` - Branch to check out (required)
-- `-p <sparse_path>` - **Colon-separated** list of path patterns to check out.
-  Required unless `-s` is given.
-- `-s` - Bare/skeleton mode: check out only the top-level files (`/*` plus `!/*/`)
-  and then create the repository's directory tree as empty directories. Mutually
-  exclusive with the need for `-p`.
+- `-p <sparse_path>` - Directory to check out. May be specified multiple times;
+  required unless `-s` is given. Paths are passed as individual arguments, so
+  names containing spaces are supported.
+- `-s` - Skeleton mode: check out only top-level files and create the
+  repository's directory tree as empty directories. It does not require `-p`.
 - `-h, --help` - Show help message
 
 ### Example
 
 ```bash
-git-sparse-checkout -u https://github.com/user/repo.git -d ./my-repo -b main -p "docs/*"
-git-sparse-checkout -u https://github.com/user/repo.git -d ./project -b develop -p "src/main.py"
+git-sparse-checkout -u https://github.com/anthropics/skills.git \
+  -d ./anthropic-skills -b main -p skills/skill-creator
 
-# Multiple paths are separated by ':'
-git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main -p "src/:test/"
+# Check out multiple directories by repeating -p
+git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main \
+  -p src -p docs -p examples
 
 # Skeleton only: top-level files + empty dir tree
 git-sparse-checkout -s -u https://github.com/user/repo.git -d ./skeleton -b main
@@ -1098,43 +1101,31 @@ git-sparse-checkout -s -u https://github.com/user/repo.git -d ./skeleton -b main
 
 ### How It Works
 
-1. Clones the repository blobless and without checking out files
-   (`git clone --filter=blob:none --no-checkout`)
-2. Enables sparse checkout configuration (`core.sparseCheckout true`)
-3. Writes the patterns into `.git/info/sparse-checkout`, splitting `-p` on `:`
-4. Checks out the specified branch
-5. With `-s`, additionally materializes every tracked directory as an empty dir
-   (`git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"`)
+1. Clones the requested branch bloblessly with Git sparse checkout enabled
+   (`git clone --filter=blob:none --sparse --branch <branch>`).
+2. In normal mode, sets all requested directories with
+   `git -C <dir> sparse-checkout set <path>...`, which uses cone mode.
+3. With `-s`, materializes every tracked directory as an empty directory using
+   NUL-delimited `git ls-tree` output, preserving paths with spaces or newlines.
 
 ### One-liner equivalent
 
 ```bash
-git clone --filter=blob:none --no-checkout <url> <dir> \
-    && cd <dir> \
-    && git config core.sparseCheckout true \
-    && printf 'src/\ntest/\n' > .git/info/sparse-checkout \
-    && git checkout <branch>
+git clone --filter=blob:none --sparse --branch <branch> <url> <dir>
+git -C <dir> sparse-checkout set src docs
 ```
 
 Skeleton mode (`-s`):
 
 ```bash
-git clone --filter=blob:none --no-checkout <url> <dir> && cd <dir>
-git config core.sparseCheckout true
-printf '/*\n!/*/\n' > .git/info/sparse-checkout
-git checkout <branch>
-git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"
+git clone --filter=blob:none --sparse --branch <branch> <url> <dir>
+while IFS= read -r -d '' dir; do
+  mkdir -p -- "<dir>/$dir"
+done < <(git -C <dir> ls-tree -r -d -z --name-only HEAD)
 ```
 
-Modern `git sparse-checkout` subcommand (Git ≥ 2.25):
+The script requires Git 2.25 or later for `git sparse-checkout` support.
 
-```bash
-git clone --filter=blob:none --no-checkout <url> <dir>
-cd <dir>
-git sparse-checkout init --cone
-git sparse-checkout set docs src
-git checkout <branch>
-```
 
 ## git-sprint-commit
 

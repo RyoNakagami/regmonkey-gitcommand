@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--diff-filter` values, including uppercase inclusion, lowercase exclusion,
   and `*` all-or-none behavior.
 
+### Changed
+- `git-sparse-checkout`: use Git's sparse-checkout porcelain rather than editing
+  `.git/info/sparse-checkout` directly. `-p` is now repeatable for directory
+  paths (for example, `-p src -p docs`); the former colon-separated format is
+  no longer supported. `-s` is now named skeleton mode to avoid confusion with
+  Git bare repositories, while retaining the option for compatibility.
+
 ## [1.3.0] - 2026-08-28
 
 ### Added
