@@ -23,6 +23,7 @@ A collection of git helper scripts to enhance your git workflow. Every entry bel
 - [git-push-multiple-remotes](#git-push-multiple-remotes) - Push a branch to every configured remote
 - [git-rename-repo](#git-rename-repo) - Rename the current GitHub repository from a YAML metadata file
 - [git-repo-update](#git-repo-update) - Update GitHub repo description / topics from a YAML file
+- [git-sed](#git-sed) - Replace ERE matches in Git-selected tracked text files
 - [git-secret-ignore](#git-secret-ignore) - Register patterns in `.git/info/exclude` (private ignore)
 - [git-sparse-checkout](#git-sparse-checkout) - Clone repository with sparse checkout for specific paths
 - [git-sprint-commit](#git-sprint-commit) - Commit with an ISO-week sprint prefix
@@ -970,6 +971,57 @@ Remove a topic:
 
 ```bash
 gh repo edit --remove-topic <topic>
+```
+
+## git-sed
+
+Replaces text in tracked, non-binary files selected by `git grep`. The search
+pattern is ERE throughout: Git chooses matching files while `sed -E` rewrites
+their working-tree contents. By default the script writes changes, but it first
+refuses files with staged or unstaged changes; use `--force` only when that is
+intentional.
+
+### Usage
+
+```bash
+git-sed [options] <pattern> [<replacement>] [<revision>] [-- <pathspec>...]
+```
+
+`<revision>` selects files from that revision only. Any replacement is still
+made to the same path in the working tree; files absent there are warned about
+and skipped. Omitting both `<replacement>` and `--to` is a dry run.
+
+### Options
+
+- `--from ERE` - Use a different sed left-hand side than `<pattern>`
+- `--to STR` - Use a different sed replacement than `<replacement>`
+- `-n, --dry-run` - Print before/after lines without writing files
+- `-i, --ignore-case` - Search and replace case-insensitively
+- `-w, --word-regexp` - Select whole-word matches
+- `--include GLOB` / `--exclude GLOB` - Add an include / exclusion pathspec; repeatable
+- `--first` - Replace only the first match on each line
+- `--ask` - Confirm each file with `y` (yes), `n` (no), `d` (show full diff), `a` (all), or `q` (quit)
+- `--diff` / `--difftool` - Inspect only files changed by this invocation
+- `--force` - Permit replacement in files that already have uncommitted changes
+
+### Examples
+
+```bash
+git-sed 'foo_client' 'bar_client'
+git-sed --from 'foo_([0-9]+)' --to 'bar_\1' 'foo_'
+git-sed -n --include '*.py' --exclude 'vendor/**' 'old_name' 'new_name'
+git-sed --ask --first 'https://old.example' 'https://new.example' -- src/
+```
+
+`--word-regexp` uses Git's word matcher to select files but sed's `\b` word
+boundaries to replace content. Their definitions can differ at punctuation such
+as `foo-bar`; previews deliberately show the sed result that would be written.
+
+### One-liner equivalent
+
+```bash
+git grep -lIzE -e '<pattern>' -- <pathspec>... \
+  | xargs -0 sed -E -i 's|<pattern>|<replacement>|g'
 ```
 
 ## git-secret-ignore

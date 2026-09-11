@@ -83,6 +83,7 @@ To enhance your Git experience with some convenient aliases, please add the foll
   push-multiple-remotes = "!git-push-multiple-remotes.sh"
   rename-repo = "!git-rename-repo.sh"
   repo-update = "!git-repo-update.sh"
+  sed = "!git-sed.sh"
   secret-ignore = "!git-secret-ignore.sh"
   sparse-checkout = "!git-sparse-checkout.sh"
   sprint-commit = "!git-sprint-commit.sh"

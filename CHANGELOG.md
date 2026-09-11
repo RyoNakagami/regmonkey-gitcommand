@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `git-sed`: safely replace ERE matches in Git-selected, tracked text files,
+  with dry-run previews, pathspec filters, clean-file protection, and optional
+  per-file confirmation.
 - `git-rename-repo`: rename the current GitHub repository to the
   `repository_name` defined in a YAML metadata file
   (`.github/repository_metadata/gh_repo.yml` by default), the counterpart to
