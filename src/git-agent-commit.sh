@@ -5,20 +5,23 @@
 # Script: git-gen-commit.sh
 # Description:
 #   Generates a Git commit message from the currently staged diff by piping
-#   `git diff --cached` into the `claude` CLI, then creates the commit.
+#   `git diff --cached` into the `claude` (or `codex`) CLI, then creates the commit.
 #
 #   Steps:
 #     1. Verify there are staged changes (exit if none).
 #     2. Build a prompt (optionally extended with a branch rule file).
-#     3. Pipe the staged diff to `claude -p <prompt>` to produce a one-line message.
+#     3. Pipe the staged diff to `claude -p <prompt>` (or `codex exec <prompt>`)
+#        to produce a one-line message.
 #     4. Either print the message (--dryrun) or create the commit.
 #
 # Options:
 #    --dryrun           Print the generated commit message without committing
 #    --codex            Use the `codex` CLI instead of `claude` for generation
+#                       (runs `codex exec` with a read-only sandbox)
 #    --rule <path>      Read a branch rule file and include it in the prompt
 #                       so the generated message follows the project's rules
-#    --model <model>    Claude model to use (default: claude-sonnet-4-6)
+#    --model <model>    Model to use (claude default: claude-sonnet-4-6;
+#                       codex default: model configured in ~/.codex/config.toml)
 #    --exclude <pat>    Pathspec to exclude from diff (repeatable).
 #                       Accepts a plain pattern or a git magic pathspec:
 #                         plain      '*.lock'            -> :(exclude)*.lock
@@ -32,6 +35,7 @@
 #   ./git-gen-commit.sh                                      # Generate and commit (claude)
 #   ./git-gen-commit.sh --dryrun                             # Show message only
 #   ./git-gen-commit.sh --codex                              # Generate via codex instead
+#   ./git-gen-commit.sh --codex --model gpt-6-astra --dryrun
 #   ./git-gen-commit.sh --rule .claude/commit-rule.md
 #   ./git-gen-commit.sh --model claude-sonnet-4-6
 #   ./git-gen-commit.sh --exclude '*.lock' --exclude 'Cargo.lock'
@@ -140,7 +144,8 @@ to_exclude_pathspec() {
 DRY_RUN=false
 USE_CODEX=false
 RULE_PATH=""
-MODEL="claude-sonnet-4-6"
+DEFAULT_CLAUDE_MODEL="claude-sonnet"
+MODEL=""
 EXCLUDES=()
 normalized=""
 
@@ -243,25 +248,32 @@ for ex in "${EXCLUDES[@]+"${EXCLUDES[@]}"}"; do
 done
 
 if $USE_CODEX; then
-    DIFF=$(git diff --cached -- "${DIFF_ARGS[@]+"${DIFF_ARGS[@]}"}")
-    COMBINED="${PROMPT}
-
---- staged diff ---
-${DIFF}
---- end diff ---"
+    BACKEND="codex"
+    # `codex exec` appends piped stdin to the prompt as a <stdin> block,
+    # mirroring `claude -p`. Run read-only and ephemeral: no tools are needed.
+    CODEX_ARGS=(--sandbox read-only --ephemeral)
+    if [[ -n "$MODEL" ]]; then
+        CODEX_ARGS+=(--model "$MODEL")
+    fi
     TMPFILE="$(mktemp)"
-    trap 'rm -f "$TMPFILE"' EXIT
-    codex exec --dangerously-bypass-approvals-and-sandbox \
-        -o "$TMPFILE" "$COMBINED" >/dev/null 2>&1
+    ERRFILE="$(mktemp)"
+    trap 'rm -f "$TMPFILE" "$ERRFILE"' EXIT
+    if ! git diff --cached -- "${DIFF_ARGS[@]+"${DIFF_ARGS[@]}"}" \
+        | codex exec "${CODEX_ARGS[@]}" -o "$TMPFILE" "$PROMPT" >/dev/null 2>"$ERRFILE"; then
+        echo "❌ codex exec failed:" >&2
+        cat "$ERRFILE" >&2
+        exit 1
+    fi
     MESSAGE=$(sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//' "$TMPFILE")
 else
+    BACKEND="claude"
     MESSAGE=$(git diff --cached -- "${DIFF_ARGS[@]+"${DIFF_ARGS[@]}"}" \
-        | claude -p "$PROMPT" --model "$MODEL" \
+        | claude -p "$PROMPT" --model "${MODEL:-$DEFAULT_CLAUDE_MODEL}" \
         | sed -e 's/^[[:space:]]*//; s/[[:space:]]*$//')
 fi
 
 if [[ -z "$MESSAGE" ]]; then
-    echo "❌ Empty commit message returned from claude."
+    echo "❌ Empty commit message returned from ${BACKEND}."
     exit 1
 fi
 
