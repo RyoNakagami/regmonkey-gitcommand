@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-05
+
+### Added
+- `git-sed`: safely replace ERE matches in Git-selected, tracked text files,
+  with dry-run previews, pathspec filters, clean-file protection, and optional
+  per-file confirmation.
+- `git-rename-repo`: rename the current GitHub repository to the
+  `repository_name` defined in a YAML metadata file
+  (`.github/repository_metadata/gh_repo.yml` by default), the counterpart to
+  `git-create-repo`. Validates that the name is a bare repository name (no owner,
+  no whitespace) and that the optional owner key (`org-name`, falling back to
+  `org_name`) matches the current owner, since `gh repo rename` cannot transfer
+  ownership. Exits successfully when the name already matches, so it is safe to
+  re-run. Supports `-n`/`--dry-run` and confirms before renaming.
+- `git-grep-commit`: find commits with `git log -G`, optionally scoped by
+  revision ranges and Git pathspecs, and render the matching paths as a table,
+  JSON, or YAML. Use `-i` for case-insensitive patch matching and Git-compatible
+  `--diff-filter` values, including uppercase inclusion, lowercase exclusion,
+  and `*` all-or-none behavior. `--long-date` (ISO 8601) and `--short-date`
+  (`YYYY-MM-DD`) add the author date to the output.
+
+### Changed
+- `git-sparse-checkout`: use Git's sparse-checkout porcelain rather than editing
+  `.git/info/sparse-checkout` directly. `-p` is now repeatable for directory
+  paths (for example, `-p src -p docs`); the former colon-separated format is
+  no longer supported. `-s` is now named skeleton mode to avoid confusion with
+  Git bare repositories, while retaining the option for compatibility.
+
 ## [1.3.0] - 2026-08-28
 
 ### Added
@@ -80,6 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `git-add-newline`: the `--help` text advertised glob-style ignore patterns
   (`-i "*.md"`), but matching uses bash regex (`[[ $file =~ $pattern ]]`), so a
   glob never matched. The examples now show regexes (`-i '\.md$'`).
+
+### Removed
+- `VERSION` file. The release workflow derives the tag from the top
+  `## [X.Y.Z]` heading in this changelog, so the file was a second, redundant
+  source of truth that had to be kept in sync by hand.
 
 ## [1.2.0] - 2026-05-20
 
@@ -168,7 +201,8 @@ Maintenance release.
 - `git-tree`: render git-tracked files as a tree.
 - `git-whoami`: print the configured git user name and email.
 
-[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.3...v1.1.0

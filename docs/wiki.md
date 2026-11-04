@@ -16,11 +16,14 @@ A collection of git helper scripts to enhance your git workflow. Every entry bel
 - [git-delete-remote-branch](#git-delete-remote-branch) - Delete a remote branch (optionally the local copy too)
 - [git-find](#git-find) - Grep file paths known to git (tracked / untracked / ignored)
 - [git-first-add](#git-first-add) - Report the first (and latest) commit that added each tracked file
+- [git-grep-commit](#git-grep-commit) - Find commits whose patches match a regex
 - [git-issue2pr](#git-issue2pr) - Convert a GitHub issue into a Pull Request
 - [git-lastdiff](#git-lastdiff) - Show diff between last commit and current state
 - [git-newline-check](#git-newline-check) - Check for missing trailing newlines
 - [git-push-multiple-remotes](#git-push-multiple-remotes) - Push a branch to every configured remote
+- [git-rename-repo](#git-rename-repo) - Rename the current GitHub repository from a YAML metadata file
 - [git-repo-update](#git-repo-update) - Update GitHub repo description / topics from a YAML file
+- [git-sed](#git-sed) - Replace ERE matches in Git-selected tracked text files
 - [git-secret-ignore](#git-secret-ignore) - Register patterns in `.git/info/exclude` (private ignore)
 - [git-sparse-checkout](#git-sparse-checkout) - Clone repository with sparse checkout for specific paths
 - [git-sprint-commit](#git-sprint-commit) - Commit with an ISO-week sprint prefix
@@ -605,9 +608,9 @@ Each row contains:
 | Field    | Description                                                              |
 | -------- | ------------------------------------------------------------------------ |
 | `file`   | Tracked file path                                                        |
-| `count`  | Number of times the file has been added (>1 means deleted and re-added) |
-| `oldest` | Hash, author, date, and subject of the first add commit                 |
-| `latest` | Hash, author, date, and subject of the most recent add commit           |
+| `count`  | Number of times the file has been added (>1 means deleted and re-added)  |
+| `oldest` | Hash, author, date, and subject of the first add commit                  |
+| `latest` | Hash, author, date, and subject of the most recent add commit            |
 
 ### One-liner equivalent
 
@@ -636,6 +639,87 @@ git ls-files | while read f; do
     printf "%-50s  " "$f"
     git log --diff-filter=A --reverse --format="%h %an %ad %s" --date=iso -- "$f" | head -1
 done
+```
+
+## git-grep-commit
+
+Finds commits whose patches add or remove text matching a regular expression,
+then groups the affected paths by commit. Revision ranges and every path after
+`--` are passed through to Git, including magic pathspecs.
+
+### Usage
+
+```bash
+git-grep-commit [options] <regex> [<revision> ...] [-- <pathspec> ...]
+```
+
+### Options
+
+- `-f, --format <format>` - Output as `table` (default), `json`, or `yml`;
+  `yaml` is accepted as an alias for `yml`
+- `-i, --ignore-case` - Match the patch regex case-insensitively
+- `--long-date` - Show the author date in ISO 8601 format (`%ai`, e.g.
+  `2026-09-08 19:03:24 +0900`)
+- `--short-date` - Show the author date as `YYYY-MM-DD` (`%as`)
+- `--diff-filter <filter>` - Apply Git's native diff filter. Uppercase status
+  letters include changes, lowercase letters exclude changes, and `*` enables
+  Git's all-or-none behavior. Both `--diff-filter=AM` and `--diff-filter AM`
+  are accepted.
+- `-h, --help` - Show help message
+
+The filter value is passed unchanged to Git:
+
+| Filter | Result |
+| --- | --- |
+| `A` | Added paths only |
+| `M` | Modified paths only |
+| `D` | Deleted paths only |
+| `R` | Renamed paths only |
+| `C` | Copied paths only |
+| `AM` | Added or modified paths |
+| `ad` | Exclude added and deleted paths |
+| `AM*` | If a commit contains an added or modified path, select all changed paths in that commit |
+
+Other native Git status letters such as `T`, `U`, `X`, and `B` are also
+accepted. Because `*` modifies other selection letters, it is normally combined
+with them, as in `AM*`.
+
+### Examples
+
+```bash
+git-grep-commit 'TODO'
+git-grep-commit -i 'todo' HEAD~20..HEAD
+git-grep-commit --diff-filter=A 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter=AM 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter=ad 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter='*' 'TODO' HEAD~20..HEAD
+git-grep-commit --diff-filter='AM*' 'TODO' HEAD~20..HEAD
+git-grep-commit 'TODO' HEAD~20..HEAD -- '*.qmd'
+git-grep-commit --format json 'TODO' HEAD~20..HEAD -- ':(glob)**/*.qmd'
+git-grep-commit -f yml 'TODO' -- docs/
+git-grep-commit --short-date 'TODO' HEAD~20..HEAD
+git-grep-commit --long-date -f json 'TODO' HEAD~20..HEAD
+```
+
+JSON and YAML contain one object per commit with a nested `files` list. Rename
+and copy entries contain both `old_path` and `path`; the table renders these as
+`old path -> new path`. Filenames containing tabs or newlines are escaped in the
+table and serialized safely in JSON/YAML.
+
+The date options are off by default. With `--long-date` or `--short-date`, the
+table gains a `DATE` column after `COMMIT`, and each JSON/YAML commit object
+gains a `date` field. The last of the two flags on the command line wins.
+
+### One-liner equivalent
+
+```bash
+git log -G '<regex>' [--regexp-ignore-case] [--diff-filter=AM] \
+    --format='commit %h' --name-status \
+    <revision-range> -- '<pathspec>'
+
+# With the author date (--long-date uses %ai, --short-date uses %as)
+git log -G '<regex>' --format='commit %h %as' --name-status \
+    <revision-range> -- '<pathspec>'
 ```
 
 ## git-issue2pr
@@ -778,6 +862,78 @@ change, not an equivalent):
 git remote | while read r; do git push "$r" <branch> || break; done
 ```
 
+## git-rename-repo
+
+Renames the current GitHub repository to the `repository_name` defined in a YAML metadata file (`.github/repository_metadata/gh_repo.yml` by default), after a confirmation prompt. This is the counterpart to `git-create-repo`: edit the YAML, then run this script to bring the remote name back in sync.
+
+### Usage
+
+```bash
+git-rename-repo                       # Use default YAML
+git-rename-repo /path/to/gh-meta.yml  # Use a custom YAML
+git-rename-repo -n                    # Dry run
+```
+
+The default YAML path is
+`<repo-root>/.github/repository_metadata/gh_repo.yml`, and the path must end in
+`.yml` or `.yaml`.
+
+### Options
+
+- `-n, --dry-run` - Print the current and new names plus the `gh repo rename`
+  command that would run, then exit without renaming. `gh` is still called
+  (read-only) to look up the current repository.
+- `-h, --help` - Show help message
+
+The confirmation prompt accepts only a single `y` / `Y`; anything else (including
+`yes`) aborts.
+
+### YAML format
+
+```yaml
+meta-data:
+  repository_name: my-renamed-repo
+  org-name: my-org           # optional; must match the current owner
+```
+
+`org-name` is the key written by `gh_repo.yml`; `org_name` is accepted as a
+fallback for metadata files created for older versions of `git-create-repo`.
+
+### Behaviour
+
+- Exits successfully with a message when the YAML name already matches the
+  current repository name, so the script is safe to re-run.
+- Rejects a `repository_name` that contains a `/` or whitespace — it must be a
+  bare repository name, not `owner/name`.
+- Errors out when the owner in the YAML differs from the current owner
+  (compared case-insensitively): `gh repo rename` cannot transfer a repository
+  to another owner.
+- Does not touch local files, including the git remote. The script passes
+  `--repo` to `gh repo rename`, and in that mode `gh` does not rewrite the local
+  remote. GitHub redirects the old URL, but update `origin` yourself:
+
+  ```bash
+  git remote set-url origin https://github.com/<owner>/<new-name>.git  # HTTPS
+  git remote set-url origin git@github.com:<owner>/<new-name>.git      # SSH
+  ```
+
+### Requirements
+
+- [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
+- `git`, plus `yamlcli` and `jq` for YAML parsing
+
+### One-liner equivalent
+
+```bash
+gh repo rename <new-name> --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)" --yes
+```
+
+Reading the new name out of the YAML file:
+
+```bash
+gh repo rename "$(yamlcli --to-json .github/repository_metadata/gh_repo.yml | jq -r '.["meta-data"].repository_name')" --yes
+```
+
 ## git-repo-update
 
 Updates a GitHub repository's description, homepage, and topics from a YAML metadata file. Topics present on the repo but absent from YAML are removed; topics in YAML but missing on the repo are added.
@@ -826,6 +982,64 @@ Remove a topic:
 gh repo edit --remove-topic <topic>
 ```
 
+## git-sed
+
+Replaces text in tracked, non-binary files selected by `git grep`. The search
+pattern is ERE throughout: Git chooses matching files while `sed -E` rewrites
+their working-tree contents. By default the script writes changes, but it first
+refuses files with staged or unstaged changes; use `--force` only when that is
+intentional.
+
+### Usage
+
+```bash
+git-sed [options] <pattern> [<replacement>] [<revision>] [-- <pathspec>...]
+```
+
+`<revision>` selects files from that revision only. Any replacement is still
+made to the same path in the working tree; files absent there are warned about
+and skipped. Omitting both `<replacement>` and `--to` is a dry run.
+
+### Options
+
+- `--from ERE` - Use a different sed left-hand side than `<pattern>`
+- `--to STR` - Use a different sed replacement than `<replacement>`
+- `-n, --dry-run` - Print before/after lines without writing files
+- `-i, --ignore-case` - Search and replace case-insensitively
+- `-w, --word-regexp` - Select whole-word matches
+- `--include GLOB` / `--exclude GLOB` - Add an include / exclusion pathspec; repeatable
+- `--first` - Replace only the first match on each line
+- `--ask` - Confirm each file with `y` (yes), `n` (no), `d` (show full diff), `a` (all), or `q` (quit)
+- `--diff` / `--difftool` - Inspect only files changed by this invocation
+- `--force` - Permit replacement in files that already have uncommitted changes
+- `-h, --help` - Show help message
+
+`--from`, `--to`, `--include` and `--exclude` also accept the `--opt=value`
+form. A dry run prints each changed line as `-` / `+` pairs followed by an
+`N files, M replacements` summary. When nothing matches, the script prints
+`No files matched.` and exits `0`. The sed delimiter is chosen automatically from
+`/ | # % , @ ^`, avoiding any character used in the pattern or replacement.
+
+### Examples
+
+```bash
+git-sed 'foo_client' 'bar_client'
+git-sed --from 'foo_([0-9]+)' --to 'bar_\1' 'foo_'
+git-sed -n --include '*.py' --exclude 'vendor/**' 'old_name' 'new_name'
+git-sed --ask --first 'https://old.example' 'https://new.example' -- src/
+```
+
+`--word-regexp` uses Git's word matcher to select files but sed's `\b` word
+boundaries to replace content. Their definitions can differ at punctuation such
+as `foo-bar`; previews deliberately show the sed result that would be written.
+
+### One-liner equivalent
+
+```bash
+git grep -lIzE -e '<pattern>' -- <pathspec>... \
+  | xargs -0 sed -E -i 's|<pattern>|<replacement>|g'
+```
+
 ## git-secret-ignore
 
 Registers one or more `<pattern>`s in `.git/info/exclude`, keeping them untracked locally without modifying the shared `.gitignore`. Idempotent — already-present patterns are skipped.
@@ -870,6 +1084,8 @@ Clones a Git repository with sparse checkout enabled, useful for pulling only sp
 
 ```bash
 git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> -p <sparse_path>
+git-sparse-checkout -u <clone_url> -d <target_dir> -b <branch> \
+  -p <sparse_path> -p <sparse_path>
 git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 ```
 
@@ -878,21 +1094,22 @@ git-sparse-checkout -s -u <clone_url> -d <target_dir> -b <branch>
 - `-u <clone_url>` - URL of the Git repository to clone (required)
 - `-d <target_dir>` - Target directory (required)
 - `-b <branch>` - Branch to check out (required)
-- `-p <sparse_path>` - **Colon-separated** list of path patterns to check out.
-  Required unless `-s` is given.
-- `-s` - Bare/skeleton mode: check out only the top-level files (`/*` plus `!/*/`)
-  and then create the repository's directory tree as empty directories. Mutually
-  exclusive with the need for `-p`.
-- `-h` - Show help message
+- `-p <sparse_path>` - Directory to check out. May be specified multiple times;
+  required unless `-s` is given. Paths are passed as individual arguments, so
+  names containing spaces are supported.
+- `-s` - Skeleton mode: check out only top-level files and create the
+  repository's directory tree as empty directories. It does not require `-p`.
+- `-h, --help` - Show help message
 
 ### Example
 
 ```bash
-git-sparse-checkout -u https://github.com/user/repo.git -d ./my-repo -b main -p "docs/*"
-git-sparse-checkout -u https://github.com/user/repo.git -d ./project -b develop -p "src/main.py"
+git-sparse-checkout -u https://github.com/anthropics/skills.git \
+  -d ./anthropic-skills -b main -p skills/skill-creator
 
-# Multiple paths are separated by ':'
-git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main -p "src/:test/"
+# Check out multiple directories by repeating -p
+git-sparse-checkout -u https://github.com/user/repo.git -d ./subset -b main \
+  -p src -p docs -p examples
 
 # Skeleton only: top-level files + empty dir tree
 git-sparse-checkout -s -u https://github.com/user/repo.git -d ./skeleton -b main
@@ -900,43 +1117,31 @@ git-sparse-checkout -s -u https://github.com/user/repo.git -d ./skeleton -b main
 
 ### How It Works
 
-1. Clones the repository blobless and without checking out files
-   (`git clone --filter=blob:none --no-checkout`)
-2. Enables sparse checkout configuration (`core.sparseCheckout true`)
-3. Writes the patterns into `.git/info/sparse-checkout`, splitting `-p` on `:`
-4. Checks out the specified branch
-5. With `-s`, additionally materializes every tracked directory as an empty dir
-   (`git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"`)
+1. Clones the requested branch bloblessly with Git sparse checkout enabled
+   (`git clone --filter=blob:none --sparse --branch <branch>`).
+2. In normal mode, sets all requested directories with
+   `git -C <dir> sparse-checkout set <path>...`, which uses cone mode.
+3. With `-s`, materializes every tracked directory as an empty directory using
+   NUL-delimited `git ls-tree` output, preserving paths with spaces or newlines.
 
 ### One-liner equivalent
 
 ```bash
-git clone --filter=blob:none --no-checkout <url> <dir> \
-    && cd <dir> \
-    && git config core.sparseCheckout true \
-    && printf 'src/\ntest/\n' > .git/info/sparse-checkout \
-    && git checkout <branch>
+git clone --filter=blob:none --sparse --branch <branch> <url> <dir>
+git -C <dir> sparse-checkout set src docs
 ```
 
 Skeleton mode (`-s`):
 
 ```bash
-git clone --filter=blob:none --no-checkout <url> <dir> && cd <dir>
-git config core.sparseCheckout true
-printf '/*\n!/*/\n' > .git/info/sparse-checkout
-git checkout <branch>
-git ls-tree -r -d --name-only HEAD | xargs -I{} mkdir -p "{}"
+git clone --filter=blob:none --sparse --branch <branch> <url> <dir>
+while IFS= read -r -d '' dir; do
+  mkdir -p -- "<dir>/$dir"
+done < <(git -C <dir> ls-tree -r -d -z --name-only HEAD)
 ```
 
-Modern `git sparse-checkout` subcommand (Git ≥ 2.25):
+The script requires Git 2.25 or later for `git sparse-checkout` support.
 
-```bash
-git clone --filter=blob:none --no-checkout <url> <dir>
-cd <dir>
-git sparse-checkout init --cone
-git sparse-checkout set docs src
-git checkout <branch>
-```
 
 ## git-sprint-commit
 
