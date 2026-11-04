@@ -880,7 +880,9 @@ The default YAML path is
 
 ### Options
 
-- `-n, --dry-run` - Report the rename that would happen and exit without calling `gh`
+- `-n, --dry-run` - Print the current and new names plus the `gh repo rename`
+  command that would run, then exit without renaming. `gh` is still called
+  (read-only) to look up the current repository.
 - `-h, --help` - Show help message
 
 The confirmation prompt accepts only a single `y` / `Y`; anything else (including
@@ -903,15 +905,22 @@ fallback for metadata files created for older versions of `git-create-repo`.
   current repository name, so the script is safe to re-run.
 - Rejects a `repository_name` that contains a `/` or whitespace — it must be a
   bare repository name, not `owner/name`.
-- Errors out when the owner in the YAML differs from the current owner:
-  `gh repo rename` cannot transfer a repository to another owner.
-- Does not touch local files. `gh repo rename` updates the `origin` remote URL
-  for the repository you run it in.
+- Errors out when the owner in the YAML differs from the current owner
+  (compared case-insensitively): `gh repo rename` cannot transfer a repository
+  to another owner.
+- Does not touch local files, including the git remote. The script passes
+  `--repo` to `gh repo rename`, and in that mode `gh` does not rewrite the local
+  remote. GitHub redirects the old URL, but update `origin` yourself:
+
+  ```bash
+  git remote set-url origin https://github.com/<owner>/<new-name>.git  # HTTPS
+  git remote set-url origin git@github.com:<owner>/<new-name>.git      # SSH
+  ```
 
 ### Requirements
 
 - [GitHub CLI (`gh`)](https://cli.github.com/) installed and authenticated
-- `yamlcli` and `jq` for YAML parsing
+- `git`, plus `yamlcli` and `jq` for YAML parsing
 
 ### One-liner equivalent
 
@@ -1003,6 +1012,13 @@ and skipped. Omitting both `<replacement>` and `--to` is a dry run.
 - `--ask` - Confirm each file with `y` (yes), `n` (no), `d` (show full diff), `a` (all), or `q` (quit)
 - `--diff` / `--difftool` - Inspect only files changed by this invocation
 - `--force` - Permit replacement in files that already have uncommitted changes
+- `-h, --help` - Show help message
+
+`--from`, `--to`, `--include` and `--exclude` also accept the `--opt=value`
+form. A dry run prints each changed line as `-` / `+` pairs followed by an
+`N files, M replacements` summary. When nothing matches, the script prints
+`No files matched.` and exits `0`. The sed delimiter is chosen automatically from
+`/ | # % , @ ^`, avoiding any character used in the pattern or replacement.
 
 ### Examples
 
