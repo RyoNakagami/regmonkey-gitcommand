@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-05
+
 ### Added
 - `git-sed`: safely replace ERE matches in Git-selected, tracked text files,
   with dry-run previews, pathspec filters, clean-file protection, and optional
@@ -23,7 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revision ranges and Git pathspecs, and render the matching paths as a table,
   JSON, or YAML. Use `-i` for case-insensitive patch matching and Git-compatible
   `--diff-filter` values, including uppercase inclusion, lowercase exclusion,
-  and `*` all-or-none behavior.
+  and `*` all-or-none behavior. `--long-date` (ISO 8601) and `--short-date`
+  (`YYYY-MM-DD`) add the author date to the output.
 
 ### Changed
 - `git-sparse-checkout`: use Git's sparse-checkout porcelain rather than editing
@@ -198,7 +201,8 @@ Maintenance release.
 - `git-tree`: render git-tracked files as a tree.
 - `git-whoami`: print the configured git user name and email.
 
-[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/RyoNakagami/regmonkey-gitcommand/compare/v1.0.3...v1.1.0
