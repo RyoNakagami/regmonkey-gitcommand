@@ -144,7 +144,7 @@ to_exclude_pathspec() {
 DRY_RUN=false
 USE_CODEX=false
 RULE_PATH=""
-DEFAULT_CLAUDE_MODEL="claude-sonnet"
+DEFAULT_CLAUDE_MODEL="claude-sonnet-5-5"
 MODEL=""
 EXCLUDES=()
 normalized=""
